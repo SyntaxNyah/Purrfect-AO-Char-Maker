@@ -16,12 +16,13 @@ If you just want to try it with nothing installed, use the **website build** (se
 6. [Colour Lab — recolour sprites](#6-colour-lab--recolour-sprites)
 7. [Animate — make sprites move](#7-animate--make-sprites-move)
 8. [Buttons — emote icons](#8-buttons--emote-icons)
-9. [Mixer — snip & combine sprites](#9-mixer--snip--combine-sprites)
-10. [Bulk — do everything at once](#10-bulk--do-everything-at-once)
-11. [Plugins — add more content](#11-plugins--add-more-content)
-12. [Common workflows](#12-common-workflows)
-13. [Using your character in AO](#13-using-your-character-in-ao)
-14. [Tips & troubleshooting](#14-tips--troubleshooting)
+9. [Edit — crop, trim & remove background](#9-edit--crop-trim--remove-background)
+10. [Mixer — snip & combine sprites](#10-mixer--snip--combine-sprites)
+11. [Bulk — do everything at once](#11-bulk--do-everything-at-once)
+12. [Plugins — add more content](#12-plugins--add-more-content)
+13. [Common workflows](#13-common-workflows)
+14. [Using your character in AO](#14-using-your-character-in-ao)
+15. [Tips & troubleshooting](#15-tips--troubleshooting)
 
 ---
 
@@ -58,13 +59,14 @@ On the left is a **navigation rail** with these tabs:
 
 | Tab | What it's for |
 |-----|---------------|
-| 🏠 **Home** | Import sprites, set basics, export |
+| 🏠 **Home** | Import sprites/folders, set basics, export |
 | ▦ **Emotes** | Edit each emote's settings |
-| 🎨 **Colour Lab** | Recolour sprites in real time |
+| 🎨 **Colour Lab** | Recolour sprites in real time (+ custom colour wheel) |
 | 🎬 **Animate** | Make sprites move / glow / etc. |
 | ▢ **Buttons** | Preview & generate emote icons |
+| ✂️ **Edit** | Crop, auto-trim, remove background |
 | ✦ **Mixer** | Snip parts of sprites together |
-| ⧉ **Bulk** | Recolour/convert *all* sprites at once |
+| ⧉ **Bulk** | Recolour / convert / **rename** *all* sprites at once |
 | 🧩 **Plugins** | Add preset/animation packs |
 
 At the very bottom is a **status bar** showing the latest action and your emote
@@ -80,9 +82,10 @@ count. A spinner there means it's working.
 **Import your art**
 - **Import sprite files** — pick one or many images (webp, png, gif, apng, jpg,
   bmp, …). Works everywhere, including the website.
-- **Import folder** *(desktop only)* — point at an existing character folder (or
-  a folder of loose images). If it already has a `char.ini`, Purrfect loads it
-  as-is (nothing is lost); otherwise it auto-builds one.
+- **Import folder** — pick a whole folder (recursively); sub-folder structure is
+  kept. Works on **every** platform, including the website (it uses a folder
+  upload there). If the folder already has a `char.ini`, Purrfect loads it as-is
+  (nothing is lost); otherwise it auto-builds one.
 
 The moment you import, the status bar tells you what happened (e.g. *"Auto-built
 24 emotes from sprites."*).
@@ -149,13 +152,17 @@ flattening his shading).
    Rainbow, …). They **blend (stack)** on top of each other and your sliders, so
    you can combine several — each one you add shows as a chip under "Blended"
    with an ✕ to remove it.
-4. Apply it:
+4. **Custom colour** — tap **Pick colour…** to open the colour **wheel** (area,
+   sliders, hex). Then blend that exact colour in as **Recolour to** (re-hue
+   preserving shading), **Tint**, **Solid fill**, or **Gradient** — each adds to
+   the blend stack like a preset.
+5. Apply it:
    - **Apply** — bakes the look into **this** sprite.
    - **All sprites** — applies it to **every** sprite (great for a uniform theme).
-5. **Reset** clears the sliders and the blend stack.
+6. **Reset** clears the sliders and the blend stack.
 
-> "Make it `<colour>`" presets keep the original light/shadow, so recolours look
-> natural.
+> "Make it `<colour>`" / "Recolour to" keep the original light/shadow, so
+> recolours look natural.
 
 For recolouring **just part** of a sprite (only the clothes/hair), see
 [COLOR_OPS.md → region editing](COLOR_OPS.md#region--outfit-editing).
@@ -207,7 +214,24 @@ cropped to a centred square, and scaled). This tab lets you check them.
 
 ---
 
-## 9. Mixer — snip & combine sprites
+## 9. Edit — crop, trim & remove background
+
+Open the **Edit** tab (pick an emote first).
+
+- **Auto-trim transparent margins** — tightens the sprite to its visible pixels.
+- **Remove background** — flood-fills from the four corners and makes a flat/near-
+  flat background transparent. Use the **BG tolerance** slider if it removes too
+  little or too much.
+- **Crop** — drag the **Left / Top / Right / Bottom** sliders to trim edges.
+- Watch the live preview, then **Apply** (this emote) or **All sprites**.
+
+Crop and auto-trim apply the **same box to every frame and to an emote's
+`(a)`/`(b)`/`(c)` sprites**, so animations and idle/talk stay perfectly aligned.
+(The result is baked into the sprite files — use Export afterwards.)
+
+---
+
+## 10. Mixer — snip & combine sprites
 
 The "frankensprite" tool: put one character's head on another's body, etc.
 
@@ -225,7 +249,7 @@ animate the result in the Animate tab — a mixed sprite is just a normal sprite
 
 ---
 
-## 10. Bulk — do everything at once
+## 11. Bulk — do everything at once
 
 **Recolour ALL sprites**
 1. Build a look in the **Colour Lab** (sliders/preset) — it becomes the "live
@@ -252,7 +276,7 @@ animate the result in the Animate tab — a mixed sprite is just a normal sprite
 
 ---
 
-## 11. Plugins — add more content
+## 12. Plugins — add more content
 
 Packs are small JSON files that add presets, palettes, gradients, animations and
 emote-name sets. They need no install and work on the website too.
@@ -265,7 +289,7 @@ emote-name sets. They need no install and work on the website too.
 
 ---
 
-## 12. Common workflows
+## 13. Common workflows
 
 **Make a character from a folder of images**
 Home → Import → (check the Validation card) → Export .zip. That's the whole job.
@@ -288,7 +312,7 @@ emote → Export.
 
 ---
 
-## 13. Using your character in AO
+## 14. Using your character in AO
 1. **Export .zip** from Home (or Buttons).
 2. Unzip it into your AO install's `base/characters/` folder (so you get
    `base/characters/<YourName>/char.ini`).
@@ -300,7 +324,7 @@ sounds, preanimations, and frame effects.
 
 ---
 
-## 14. Tips & troubleshooting
+## 15. Tips & troubleshooting
 - **A tab says "No project yet."** Import sprites on **Home** first.
 - **"No sprite file found for X"** in Validation — the emote's **Sprite** name
   doesn't match a file. Fix the name in the Emotes tab, or add the file.

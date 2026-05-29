@@ -23,15 +23,18 @@ lib/
       sprite_scanner.dart       classify files (pure fromPaths + scanDirectory)
       character_builder.dart    ScanResult → Character (auto ini, smart names)
       organizer.dart            plan + execute folders / moves / auto buttons
+      bulk_rename.dart          name transformer (find/replace, numbering, case)
 
     imaging/                    ── the image & colour engine ──
       codecs.dart               decode anything; encode png/apng/gif
-      color_ops.dart            ~25 composable colour ops (ColorOp/OpPipeline)
-      region_edit.dart          masks + magic-wand + outfit recolour/erase/fill
+      color_ops.dart            33 composable colour ops (ColorOp/OpPipeline)
+      region_edit.dart          masks + magic-wand + recolour/erase/fill + bg removal
+      sprite_edit.dart          crop / auto-trim / background removal (frame-aware)
+      compositor.dart           snip + stack layers (frankensprite)
       button_maker.dart         auto + composited button icons
       bulk_processor.dart       apply pipeline / convert across many files
-      webp_codec.dart           WebP encode interface (lossy + lossless)
-      webp_codec_io.dart          native: libwebp via dart:ffi (+ fallback)
+      webp_codec.dart           WebP encode interface (lossy + lossless, animated)
+      webp_codec_io.dart          native: libwebp + libwebpmux via dart:ffi
       webp_codec_web.dart         web: browser canvas encoder
 
     animation/                  ── the animation engine ──
@@ -54,13 +57,14 @@ lib/
       web_workspace.dart          web (in-memory)
       workspace_factory.dart      picks the right one at compile time
       save_file.dart / _io / _web  save (native dialog) vs download (web)
+      folder_picker.* (io/web)    pick a whole folder (dir dialog / webkitdirectory)
 
     ui/
       app_state.dart            ChangeNotifier hub the screens talk to
       theme.dart
       widgets/                  checker_image, zoom_canvas
       screens/                  home, editor, color_lab, animation_studio,
-                                button_studio, bulk, plugins
+                                button_studio, edit, mixer, bulk, plugins
 ```
 
 ## Key design decisions

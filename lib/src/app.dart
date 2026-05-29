@@ -6,6 +6,7 @@ import 'ui/screens/animation_studio_screen.dart';
 import 'ui/screens/bulk_screen.dart';
 import 'ui/screens/button_studio_screen.dart';
 import 'ui/screens/color_lab_screen.dart';
+import 'ui/screens/edit_screen.dart';
 import 'ui/screens/editor_screen.dart';
 import 'ui/screens/home_screen.dart';
 import 'ui/screens/mixer_screen.dart';
@@ -33,6 +34,7 @@ const List<({IconData icon, String label})> _dests =
   (icon: Icons.palette_rounded, label: 'Colour Lab'),
   (icon: Icons.movie_filter_rounded, label: 'Animate'),
   (icon: Icons.crop_square_rounded, label: 'Buttons'),
+  (icon: Icons.content_cut_rounded, label: 'Edit'),
   (icon: Icons.auto_fix_high_rounded, label: 'Mixer'),
   (icon: Icons.dynamic_feed_rounded, label: 'Bulk'),
   (icon: Icons.extension_rounded, label: 'Plugins'),
@@ -64,10 +66,12 @@ class _HomeShellState extends State<HomeShell> {
       case 4:
         return const ButtonStudioScreen();
       case 5:
-        return const MixerScreen();
+        return const EditScreen();
       case 6:
-        return const BulkScreen();
+        return const MixerScreen();
       case 7:
+        return const BulkScreen();
+      case 8:
         return const PluginsScreen();
       case 0:
       default:
@@ -92,7 +96,7 @@ class _HomeShellState extends State<HomeShell> {
               selector: (_, AppState a) => a.hasProject,
               builder: (BuildContext context, bool hasProject, _) {
                 final bool needsProject =
-                    _index != 0 && _index != 7 && !hasProject;
+                    _index != 0 && _index != 8 && !hasProject;
                 if (needsProject) {
                   return _NoProject(onGoHome: () => setState(() => _index = 0));
                 }

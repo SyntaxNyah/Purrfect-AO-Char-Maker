@@ -66,10 +66,10 @@ the library isn't found, WebP export reports it and other formats still work.
 See [PLUGINS.md](PLUGINS.md#native-libwebp) to install/bundle it.
 
 ## Mobile file access
-iOS and Android sandbox the filesystem. Purrfect imports images through the
-system picker and exports a `.zip`, which works within the sandbox everywhere.
-In-place editing of an existing AO `characters/` folder on mobile (via the
-Storage Access Framework) is on the roadmap.
+iOS and Android sandbox the filesystem. Purrfect imports images (or a whole
+**folder**) through the system picker and exports a `.zip`, which works within
+the sandbox everywhere. In-place editing of an existing AO `characters/` folder
+on mobile (via the Storage Access Framework) is on the roadmap.
 
 ## Troubleshooting
 - **`flutter create .` overwrote something?** It only creates missing platform

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:provider/provider.dart';
 
 import '../../imaging/color_ops.dart';
@@ -38,6 +39,7 @@ class _ColorLabScreenState extends State<ColorLabScreen> {
   final ValueNotifier<Uint8List?> _preview = ValueNotifier<Uint8List?>(null);
   Timer? _debounce;
   Widget? _chipsCache;
+  Color _picked = const Color(0xFFFF5577);
 
   @override
   void initState() {
@@ -186,12 +188,102 @@ class _ColorLabScreenState extends State<ColorLabScreen> {
           ),
         ],
         const Divider(height: 24),
+        _customColour(),
+        const Divider(height: 24),
         const Text('Tap presets to blend them together'),
         const SizedBox(height: 8),
         _chipsCache ?? const SizedBox.shrink(),
       ],
     );
   }
+
+  /// Pick ANY colour with a wheel/picker and blend it in several ways.
+  Widget _customColour() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Text('Custom colour', style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 6),
+        Row(children: <Widget>[
+          GestureDetector(
+            onTap: _openPicker,
+            child: Container(
+              width: 40,
+              height: 28,
+              decoration: BoxDecoration(
+                color: _picked,
+                border: Border.all(color: Colors.white24),
+                borderRadius: BorderRadius.circular(6),
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+          OutlinedButton.icon(
+            onPressed: _openPicker,
+            icon: const Icon(Icons.colorize_rounded),
+            label: const Text('Pick colour…'),
+          ),
+        ]),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          children: <Widget>[
+            ActionChip(label: const Text('Recolour to'), onPressed: _applyRecolour),
+            ActionChip(label: const Text('Tint'), onPressed: _applyTint),
+            ActionChip(label: const Text('Solid fill'), onPressed: _applySolid),
+            ActionChip(label: const Text('Gradient'), onPressed: _applyGradientFrom),
+          ],
+        ),
+      ],
+    );
+  }
+
+  void _openPicker() {
+    showDialog<void>(
+      context: context,
+      builder: (BuildContext ctx) => AlertDialog(
+        title: const Text('Pick a colour'),
+        content: SingleChildScrollView(
+          child: ColorPicker(
+            pickerColor: _picked,
+            enableAlpha: false,
+            onColorChanged: (Color c) => setState(() => _picked = c),
+          ),
+        ),
+        actions: <Widget>[
+          TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Done')),
+        ],
+      ),
+    );
+  }
+
+  String get _hex => formatHexColor(_picked.value);
+
+  void _applyRecolour() {
+    final HSVColor h = HSVColor.fromColor(_picked);
+    _addPreset(OpPipeline('Recolour $_hex', <ColorOp>[
+      ColorOp('colorize', nums: <String, double>{
+        'hue': h.hue,
+        'saturation': h.saturation,
+        'strength': 0.95,
+      }),
+    ]));
+  }
+
+  void _applyTint() => _addPreset(OpPipeline('Tint $_hex', <ColorOp>[
+        ColorOp('tint', nums: <String, double>{'amount': 0.5}, strs: <String, String>{'color': _hex}),
+      ]));
+
+  void _applySolid() => _addPreset(OpPipeline('Solid $_hex', <ColorOp>[
+        ColorOp('solidColor', strs: <String, String>{'color': _hex}),
+      ]));
+
+  void _applyGradientFrom() => _addPreset(OpPipeline('Gradient $_hex', <ColorOp>[
+        ColorOp('gradientMap',
+            nums: <String, double>{'pos0': 0, 'pos1': 1, 'strength': 1},
+            strs: <String, String>{'stop0': '#FF000000', 'stop1': _hex}),
+      ]));
 
   /// Built once (presets don't change during a screen visit), so slider drags
   /// don't rebuild ~100 chips.

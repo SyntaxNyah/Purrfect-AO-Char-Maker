@@ -84,7 +84,22 @@ final mask = RegionEditor.selectByColor(image, x, y, tolerance: 48); // magic wa
 final soft = RegionEditor.feather(mask, radius: 2);
 RegionEditor.applyOps(image, soft, [ColorOp('colorize', nums: {'hue': 120})]);
 // or: RegionEditor.erase(image, soft) / RegionEditor.fill(image, soft, 0xFF112233)
+
+// Background removal:
+RegionEditor.removeBackgroundFromCorners(image, tolerance: 40); // flood from corners
+RegionEditor.eraseColor(image, 0xFF00FF00, tolerance: 40);      // knock out a colour
 ```
+
+## Custom colour wheel (UI)
+The **Colour Lab** has a colour wheel/picker ("Pick colour…"). Whatever you pick
+can be blended in as **Recolour to** (`colorize` from the colour's hue/sat),
+**Tint**, **Solid fill** (`solidColor`), or **Gradient** (`gradientMap`
+black → colour). These stack with presets and the sliders.
+
+## Crop / trim / background removal (UI)
+The **Edit** tab applies geometry + background ops (see also
+`imaging/sprite_edit.dart`): auto-trim, crop, and corner background removal —
+applied uniformly across every frame and an emote's (a)/(b)/(c).
 Selections can also be rectangles, ellipses, or luminance bands, and combined
 (union/intersect/subtract), grown, or shrunk.
 

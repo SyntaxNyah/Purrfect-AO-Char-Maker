@@ -33,6 +33,22 @@ Use the region editor: magic-wand select the colour, feather it, then apply a
 `colorize`/`hueShift` pipeline through the mask. See
 [COLOR_OPS.md](COLOR_OPS.md#region--outfit-editing).
 
+**How do I crop a sprite or remove its background?**
+Open the **Edit** tab: toggle **Auto-trim**, **Remove background** (corner flood
+fill, with a tolerance slider), and/or drag the **crop** sliders, then **Apply**
+(this emote) or **All sprites**. Crop/trim stay aligned across all frames and an
+emote's (a)/(b)/(c).
+
+**How do I pick a custom colour (not just presets)?**
+In the **Colour Lab**, tap **Pick colour…** for the colour wheel, then blend it
+in as Recolour / Tint / Solid / Gradient. They stack with the presets and
+sliders.
+
+**Can I import a whole folder?**
+Yes — **Home → Import folder**. On desktop/mobile it's a directory picker; on the
+website it's a folder upload. Sub-folder structure is preserved, and an existing
+`char.ini` in the folder is loaded as-is.
+
 **How do I make a sprite move if I can't animate?**
 Open the **Animate** screen, click a preset (e.g. "Happy Bounce" or "Magical"),
 maybe drag the intensity, and **Save**. That's it — see

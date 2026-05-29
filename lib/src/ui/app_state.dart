@@ -20,6 +20,8 @@ import '../imaging/bulk_processor.dart';
 import '../imaging/button_maker.dart';
 import '../imaging/codecs.dart';
 import '../imaging/color_ops.dart';
+import '../imaging/sprite_edit.dart';
+import '../imaging/webp_codec.dart';
 import '../platform/save_file.dart';
 import '../platform/workspace.dart';
 
@@ -315,6 +317,91 @@ class AppState extends ChangeNotifier {
     selectedEmote = (character?.emotes.length ?? 1) - 1;
     commitEdit();
     status = 'Added composite sprite "$safe".';
+  }
+
+  // ---------------------------------------------------------------------------
+  // Crop / trim / background removal
+  // ---------------------------------------------------------------------------
+
+  /// PNG preview of the selected sprite with [spec] applied (downscaled).
+  Future<Uint8List?> previewEdit(String rel, SpriteEditSpec spec,
+      {int maxEdge = 640}) async {
+    final img.Image? src = await decodeFirstFrame(rel);
+    if (src == null) return null;
+    img.Image work = src.clone();
+    final int longest = work.width > work.height ? work.width : work.height;
+    if (longest > maxEdge) {
+      final double s = maxEdge / longest;
+      work = img.copyResize(work,
+          width: (work.width * s).round(),
+          height: (work.height * s).round(),
+          interpolation: img.Interpolation.average);
+    }
+    return Codecs.encodePng(SpriteEdit.apply(work, spec));
+  }
+
+  /// Bake [spec] (crop / auto-trim / background removal) into the selected
+  /// emote's sprite files, or every sprite. All files in an emote group share
+  /// one crop rect so (a)/(b) stay aligned.
+  Future<int> applyEdit(SpriteEditSpec spec, {required bool allSprites}) async {
+    if (scan == null || spec.isNoop) return 0;
+    _setBusy(true, 'Editing sprites…');
+    final List<SpriteGroup> groups = <SpriteGroup>[];
+    if (allSprites) {
+      groups.addAll(scan!.groups);
+    } else if (current != null) {
+      final SpriteGroup? g =
+          scan!.groups.firstWhereOrNull((SpriteGroup g) => g.base == current!.sprite);
+      if (g != null) groups.add(g);
+    }
+
+    int edited = 0;
+    for (final SpriteGroup g in groups) {
+      final List<SpriteFile> files =
+          <SpriteFile?>[g.idle, g.talk, g.post, ...g.statics].whereType<SpriteFile>().toList();
+      final Map<String, img.Image> decoded = <String, img.Image>{};
+      for (final SpriteFile f in files) {
+        if (!await workspace.exists(f.relPath)) continue;
+        final img.Image? im = Codecs.decode(await workspace.readBytes(f.relPath), ext: f.ext);
+        if (im != null) decoded[f.relPath] = im;
+      }
+      if (decoded.isEmpty) continue;
+
+      // Remove background first, then compute one shared crop rect.
+      for (final img.Image im in decoded.values) {
+        SpriteEdit.removeBg(im, spec);
+      }
+      final IntRect rect = SpriteEdit.computeRect(decoded.values.toList(), spec);
+
+      for (final MapEntry<String, img.Image> e in decoded.entries) {
+        final String ext = e.key.split('.').last.toLowerCase();
+        final img.Image out = SpriteEdit.cropTo(e.value, rect);
+        await workspace.writeBytes(e.key, await _encodeForFile(out, ext));
+        edited++;
+      }
+    }
+    _decodeCache.clear();
+    scan = _scanner.fromPaths(await workspace.listFiles());
+    _setBusy(false, 'Edited $edited sprite file(s).');
+    return edited;
+  }
+
+  /// Re-encode preserving the file's format (WebP via the encoder; otherwise
+  /// PNG/APNG/GIF). Falls back to PNG if WebP isn't available.
+  Future<Uint8List> _encodeForFile(img.Image image, String ext) async {
+    if (ext == 'webp') {
+      final WebpResult r = image.frames.length > 1
+          ? await WebpEncoder.instance.encodeAnimation(
+              image.frames.toList(),
+              image.frames
+                  .map((img.Image f) => f.frameDuration <= 0 ? 100 : f.frameDuration)
+                  .toList(),
+              lossless: true)
+          : await WebpEncoder.instance.encode(image, lossless: true);
+      if (r.ok && r.bytes != null) return r.bytes!;
+      return Codecs.encodePng(image);
+    }
+    return Codecs.encodeForExtension(image, ext);
   }
 
   // ---------------------------------------------------------------------------

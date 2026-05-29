@@ -87,10 +87,12 @@ server {
   file or set it in Settings → Pages).
 
 ## 4. What users get on the web build
-- Import sprite **files** via the picker (folder access isn't needed).
-- All scanning, auto-`char.ini`, recolour, animation, mixing, and button
-  generation happen in the browser.
-- **WebP export works out of the box** (browser-native encoder).
+- Import sprite **files** *or a whole **folder*** (the web build uses a
+  `webkitdirectory` folder upload, preserving sub-folder structure).
+- All scanning, auto-`char.ini`, recolour, animation, mixing, cropping,
+  background removal, and button generation happen in the browser.
+- **WebP export works out of the box** (browser-native encoder). *Animated* WebP
+  is the one thing the browser can't encode, so animations export as APNG on web.
 - Export a ready-to-use character **`.zip`** via a normal download.
 - **Plugin packs** can be imported (JSON upload) — they work on web too.
 

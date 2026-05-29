@@ -220,6 +220,44 @@ class RegionEditor {
     _blendByMask(image, edited, mask);
   }
 
+  /// Remove a (roughly solid) background by flood-filling inward from all four
+  /// corners and erasing the matched region. Great for sprites on a flat colour.
+  static void removeBackgroundFromCorners(img.Image image,
+      {double tolerance = 40, int feather = 1}) {
+    final int w = image.width, h = image.height;
+    if (w == 0 || h == 0) return;
+    SelectionMask mask = SelectionMask(w, h);
+    for (final List<int> c in <List<int>>[
+      <int>[0, 0],
+      <int>[w - 1, 0],
+      <int>[0, h - 1],
+      <int>[w - 1, h - 1],
+    ]) {
+      final SelectionMask m = selectByColor(image, c[0], c[1],
+          tolerance: tolerance, contiguous: true);
+      mask = mask.combine(m, _MaskCombine.union);
+    }
+    erase(image, feather > 0 ? RegionEditor.feather(mask, radius: feather) : mask);
+  }
+
+  /// Make every pixel within [tolerance] of [argb] transparent (e.g. knock out
+  /// a known background colour anywhere in the image).
+  static void eraseColor(img.Image image, int argb, {double tolerance = 40}) {
+    final int tr = (argb >> 16) & 0xFF, tg = (argb >> 8) & 0xFF, tb = argb & 0xFF;
+    for (int y = 0; y < image.height; y++) {
+      for (int x = 0; x < image.width; x++) {
+        final img.Pixel p = image.getPixel(x, y);
+        if (p.a == 0) continue;
+        final double d = math.sqrt(math.pow(p.r - tr, 2) +
+            math.pow(p.g - tg, 2) +
+            math.pow(p.b - tb, 2));
+        if (d <= tolerance) {
+          image.setPixelRgba(x, y, p.r.toInt(), p.g.toInt(), p.b.toInt(), 0);
+        }
+      }
+    }
+  }
+
   /// Erase (make transparent) through the mask — cut a region out of the sprite.
   static void erase(img.Image image, SelectionMask mask) {
     for (int y = 0; y < image.height; y++) {

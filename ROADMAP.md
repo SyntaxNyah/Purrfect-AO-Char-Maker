@@ -24,9 +24,10 @@ Legend: ✅ done · 🟡 partial · ⬜ planned
 - ✅ Hundreds of presets / palettes / gradients
 - ✅ Region/outfit editor (magic wand, masks, feather, recolour/erase/fill)
 - ✅ 33 colour ops incl. split-tone, vignette, scanlines, grain, chroma shift, pixelate
+- ✅ Custom colour wheel/picker → recolour / tint / solid / gradient (blendable)
+- ✅ Crop, auto-trim & background removal (frame-aware; uniform across (a)/(b))
 - ✅ Sprite compositor / mixer (snip + stack layers; head-on-body)
-- ✅ Bulk recolour & format conversion
-- ✅ Bulk rename (find/replace, prefix/suffix, numbering, case, + sprite files)
+- ✅ Bulk recolour, convert, crop/trim & rename
 - ✅ WebP encode: web (canvas) + native (libwebp via FFI), bundled in CI builds
 - ✅ Animated WebP export (native via libwebpmux); **WebP is the default output**,
   auto-falling back to APNG where WebP isn't available (web build, or native
@@ -36,7 +37,7 @@ Legend: ✅ done · 🟡 partial · ⬜ planned
 - ⬜ Outline / drop-shadow / glow image ops (color ops exist; spatial ones next)
 
 ## Animation
-- ✅ 30+ stackable recipes with easing
+- ✅ ~74 stackable recipes with easing
 - ✅ Region-targeted animation (wave a hand, spin a limb)
 - ✅ Manual keyframe timeline
 - ✅ Lip-sync (two-state, multi-viseme, rough auto)
@@ -53,13 +54,16 @@ Legend: ✅ done · 🟡 partial · ⬜ planned
 ## Platforms
 - ✅ Single codebase: Windows / Linux / macOS / Android / iOS / Web
 - ✅ In-memory workspace + zip export for uniform behaviour
+- ✅ Folder import on every platform (native dir dialog / web `webkitdirectory`)
 - 🟡 Direct folder write on desktop (currently zip export; folder write planned)
 - ⬜ Android SAF / `MANAGE_EXTERNAL_STORAGE` flow for in-place folder editing
 - ⬜ Recent projects / autosave
 
 ## UI polish
-- 🟡 Editor, Colour Lab, Animation Studio, Button Studio, Bulk, Plugins screens
+- ✅ Performance: lazy active-screen build, decoupled/debounced previews,
+  cached chip lists, smooth (non-pixelated) scaling
+- 🟡 Editor, Colour Lab, Animate, Buttons, Edit, Mixer, Bulk, Plugins screens
 - ⬜ Drag-and-drop import
 - ⬜ Crop-rectangle button compositor UI (engine: `ButtonMaker.renderComposite`)
-- ⬜ Region picker overlay for region animation/outfit edits
+- ⬜ Region picker overlay (drag a box) for region animation/outfit edits
 - ⬜ Theming / accessibility pass

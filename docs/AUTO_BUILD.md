@@ -1,8 +1,11 @@
 # Auto-build: folder → finished character
 
-The headline feature. Point Purrfect at a folder (or import a set of images) and
-it produces a working character with zero configuration — then lets you tweak
-any of its decisions.
+The headline feature. **Import a whole folder** (Home → Import folder — a native
+directory picker on desktop/mobile, a `webkitdirectory` upload on the web) or
+pick individual images, and Purrfect produces a working character with zero
+configuration — then lets you tweak any of its decisions. Sub-folder structure
+is preserved, and an existing `char.ini` in the folder is loaded losslessly
+instead of rebuilt.
 
 ## The pipeline
 

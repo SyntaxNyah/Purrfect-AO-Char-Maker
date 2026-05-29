@@ -35,16 +35,23 @@ Runs natively on **Windows, Linux, macOS, Android, iOS**, and as a **website**
   preview, plus **hundreds of presets**, palettes, gradient maps, and
   "Make it `<colour>`" recolours that **preserve shading** (perfect for OCs —
   turn a sprite pink without flattening it).
+- **Custom colour wheel** — pick *any* colour (wheel / area / sliders / hex) and
+  blend it in as a recolour, tint, solid fill, or gradient — stack as many as
+  you like on top of the presets.
 - **Region / outfit editing** — magic-wand colour selection, rectangle/ellipse
   masks, feathering, grow/shrink; then recolour just the clothes, erase a
   region, or paint a fill.
+- **Crop, auto-trim & background removal** — crop sprites (uniform across all
+  frames + (a)/(b)), trim transparent margins, or knock out a flat background by
+  flood-filling from the corners.
 - **Sprite mixer ("frankensprite")** — snip a region from one sprite (e.g. a
   head) and drop it onto another (a body), with position/scale/rotate/opacity,
   then save it as a new emote.
-- **Bulk operations** — recolour or convert **every** sprite at once.
+- **Bulk operations** — recolour, convert, **crop/trim**, or **rename** *every*
+  sprite/emote at once (find/replace, prefix/suffix, numbering, case).
 - **Format conversion** — import webp/apng/gif/png (and jpg/bmp/tga/tiff/…),
   export PNG/APNG/GIF, and **WebP (lossy + lossless)** — instantly in the web
-  build, or via libwebp on desktop/mobile.
+  build, or via the bundled libwebp on desktop/mobile.
 
 ### Animate everything (so anyone can)
 - **One-click animation recipes** — sway, bob, bounce, breathe, shake, spin,
@@ -55,8 +62,9 @@ Runs natively on **Windows, Linux, macOS, Android, iOS**, and as a **website**
 - **Lip-sync** — give it a mouth-closed + mouth-open sprite (or several visemes)
   and it builds the talking `(b)` animation; a rough one-sprite auto mode exists
   too.
-- **Custom keyframe timeline** — full manual control for power users.
-- Everything exports as **standard APNG/GIF**, so it just works in AO.
+- **~74 stackable effects** and a **custom keyframe timeline** for full control.
+- Exports as **animated WebP** by default (bundled libwebp on desktop/mobile;
+  browser-native on web), auto-falling back to APNG where WebP isn't available.
 
 ### Extend everything
 - **Plugin packs** — plain JSON adding presets, palettes, gradients, animations

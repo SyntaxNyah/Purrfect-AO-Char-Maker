@@ -53,12 +53,13 @@ One-command everything: `scripts/build_all.ps1` (Windows) / `scripts/build_all.s
 lib/src/
   core/        AO data model (constants, ini, emote, character, frame effects,
                validator, history)
-  discovery/   folder → character (scanner, builder, organizer)
-  imaging/     codecs, colour ops, region edit, compositor, buttons, bulk, webp
+  discovery/   folder → character (scanner, builder, organizer, bulk rename)
+  imaging/     codecs, colour ops, region edit, sprite edit (crop/trim/bg),
+               compositor, buttons, bulk, webp
   animation/   clip, easing, recipe engine, keyframe timeline, lipsync
   presets/     built-in preset library
   plugins/     JSON pack model + extension registry
-  platform/    Workspace + save/webp platform seams (conditional imports)
+  platform/    Workspace + folder picker + save/webp seams (conditional imports)
   ui/          Flutter app: app_state, theme, widgets/, screens/
 ```
 
@@ -188,7 +189,19 @@ The central model.
 - `class RegionEditor` — `rectangle`, `ellipse`, `selectByColor(image,x,y,{
   tolerance,contiguous,ignoreTransparent})` (magic wand/flood fill),
   `selectByLuminance`, `feather`, `grow`, `shrink`, `applyOps(image,mask,ops)`,
-  `erase(image,mask)`, `fill(image,mask,argb)`.
+  `erase(image,mask)`, `fill(image,mask,argb)`,
+  `removeBackgroundFromCorners(image,{tolerance,feather})`,
+  `eraseColor(image,argb,{tolerance})`.
+
+### imaging/sprite_edit.dart  ← crop / trim / background removal
+- `class SpriteEditSpec({cropLeft,cropTop,cropRight,cropBottom (fractions),
+  autoTrim, removeBgCorners, eraseColorEnabled, eraseColorValue, bgTolerance})`
+  — `.isNoop`.
+- `class SpriteEdit` — `computeRect(images, spec)` (one shared crop box for a
+  whole emote group, incl. union auto-trim), `removeBg(image, spec)` (in place,
+  no size change), `cropTo(image, rect)` (frame-aware), `apply(image, spec,
+  {rect})` (preview: removeBg → crop). Geometry is uniform across frames and
+  across an emote's (a)/(b)/(c) so animations/idle-talk stay aligned.
 
 ### imaging/compositor.dart  ← snip + combine sprites
 - `class Layer(image,{x,y,scale,angle,opacity,visible,name})`.
@@ -281,14 +294,18 @@ The central model.
   `MemoryWorkspace` (web/tests; `.put`, `.snapshot`), `IoWorkspace` (native).
   Get one via `createLocalWorkspace(root)` from `workspace_factory.dart`.
 - `saveBytes(name,bytes)` (`save_file.dart`) — native dialog / web download.
+- `pickFolderFiles()` (`folder_picker.dart`) — pick a whole folder (recursive);
+  native dir dialog, web `<input webkitdirectory>`. Returns `(name, bytes)` per
+  file with sub-folder paths preserved.
 
 ### ui/
 - `AppState extends ChangeNotifier` (`ui/app_state.dart`) — the hub the screens
-  use: import, scan/build, edit, undo/redo, previews, live pipeline, apply/bulk,
+  use: import (files/folder), scan/build, edit, undo/redo, previews, live
+  pipeline, apply/bulk, **bulkRename**, **crop/trim/bg via previewEdit/applyEdit**,
   animation render/save (WebP default), mixer save, export zip/ini. Read it
   before adding a screen.
-- `screens/` — home, editor, color_lab, animation_studio, button_studio, mixer,
-  bulk, plugins. `widgets/` — `CheckerImage`, `ZoomCanvas`.
+- `screens/` — home, editor, color_lab, animation_studio, button_studio, edit,
+  mixer, bulk, plugins. `widgets/` — `CheckerImage`, `ZoomCanvas`.
 
 ---
 

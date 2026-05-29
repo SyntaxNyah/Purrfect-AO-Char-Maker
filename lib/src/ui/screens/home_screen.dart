@@ -1,12 +1,11 @@
 import 'package:file_picker/file_picker.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/ao_constants.dart';
 import '../../core/validator.dart';
 import '../../discovery/character_builder.dart';
-import '../../platform/workspace_factory.dart';
+import '../../platform/folder_picker.dart';
 import '../../plugins/extension_registry.dart';
 import '../app_state.dart';
 
@@ -31,9 +30,11 @@ class HomeScreen extends StatelessWidget {
 
   Future<void> _importFolder(BuildContext context) async {
     final AppState app = context.read<AppState>();
-    final String? dir = await FilePicker.platform.getDirectoryPath();
-    if (dir == null) return;
-    await app.importWorkspace(createLocalWorkspace(dir));
+    final List<PickedFolderFile>? files = await pickFolderFiles();
+    if (files == null || files.isEmpty) return;
+    await app.importFiles(<PickedFile>[
+      for (final PickedFolderFile f in files) PickedFile(f.name, f.bytes),
+    ]);
   }
 
   @override
@@ -64,12 +65,11 @@ class HomeScreen extends StatelessWidget {
               icon: const Icon(Icons.image_outlined),
               label: const Text('Import sprite files'),
             ),
-            if (!kIsWeb)
-              FilledButton.tonalIcon(
-                onPressed: () => _importFolder(context),
-                icon: const Icon(Icons.folder_open_rounded),
-                label: const Text('Import folder'),
-              ),
+            FilledButton.tonalIcon(
+              onPressed: () => _importFolder(context),
+              icon: const Icon(Icons.folder_open_rounded),
+              label: const Text('Import folder'),
+            ),
             if (app.hasProject) ...<Widget>[
               OutlinedButton.icon(
                 onPressed: () => app.exportZip(),

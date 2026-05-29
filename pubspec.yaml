@@ -33,6 +33,9 @@ dependencies:
   # Small, dependency-light state management used by the UI layer.
   provider: ^6.1.2
 
+  # Custom colour wheel / picker (area, sliders, hex) for the Colour Lab.
+  flutter_colorpicker: ^1.1.0
+
   # Misc collection helpers (natural sort, grouping).
   collection: ^1.18.0
 

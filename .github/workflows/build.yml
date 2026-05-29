@@ -66,19 +66,21 @@ jobs:
         continue-on-error: true
         shell: pwsh
         run: |
-          # Base install guarantees libwebp; the second adds the mux/demux
-          # features that provide WebPAnimEncoder (animated WebP).
+          # vcpkg's libwebp ships the `libwebpmux` feature by default, which
+          # provides WebPAnimEncoder (animated WebP) — so one install is enough.
           vcpkg install libwebp:x64-windows
-          vcpkg install "libwebp[core,mux,demux,simd]:x64-windows"
           $bin = "$env:VCPKG_INSTALLATION_ROOT\installed\x64-windows\bin"
           $dst = "build\windows\x64\runner\Release"
           Get-ChildItem $bin -Filter *.dll |
             Where-Object { $_.Name -match 'webp|sharpyuv' } |
             ForEach-Object { Copy-Item $_.FullName $dst -Force }
           Write-Host "Bundled DLLs:"; Get-ChildItem $dst -Filter *.dll | Select-Object Name
-          if (-not (Get-ChildItem $dst -Filter '*webpmux*.dll')) {
-            Write-Warning "libwebpmux DLL not found — animated WebP may be unavailable on Windows."
+          if (Get-ChildItem $dst -Filter '*webpmux*.dll') {
+            Write-Host "libwebpmux bundled - animated WebP available."
+          } else {
+            Write-Warning "libwebpmux DLL not found - animated WebP may be unavailable on Windows."
           }
+          exit 0
       - uses: actions/upload-artifact@v4
         with:
           name: purrfect-windows
