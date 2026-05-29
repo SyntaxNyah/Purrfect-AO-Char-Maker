@@ -152,10 +152,11 @@ flattening his shading).
    Rainbow, …). They **blend (stack)** on top of each other and your sliders, so
    you can combine several — each one you add shows as a chip under "Blended"
    with an ✕ to remove it.
-4. **Custom colour** — tap **Pick colour…** to open the colour **wheel** (area,
-   sliders, hex). Then blend that exact colour in as **Recolour to** (re-hue
-   preserving shading), **Tint**, **Solid fill**, or **Gradient** — each adds to
-   the blend stack like a preset.
+4. **Custom colour** — type a **hex** code right in the panel (e.g. `FF5577`), or
+   tap the wheel icon to open the colour **wheel** (hue wheel + sliders + its own
+   editable hex bar + HEX/RGB/HSV readouts). Then blend that exact colour in as
+   **Recolour to** (re-hue preserving shading), **Tint**, **Solid fill**, or
+   **Gradient** — each adds to the blend stack like a preset.
 5. Apply it:
    - **Apply** — bakes the look into **this** sprite.
    - **All sprites** — applies it to **every** sprite (great for a uniform theme).

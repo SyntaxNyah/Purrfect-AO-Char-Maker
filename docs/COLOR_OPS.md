@@ -91,10 +91,12 @@ RegionEditor.eraseColor(image, 0xFF00FF00, tolerance: 40);      // knock out a c
 ```
 
 ## Custom colour wheel (UI)
-The **Colour Lab** has a colour wheel/picker ("Pick colour…"). Whatever you pick
-can be blended in as **Recolour to** (`colorize` from the colour's hue/sat),
-**Tint**, **Solid fill** (`solidColor`), or **Gradient** (`gradientMap`
-black → colour). These stack with presets and the sliders.
+The **Colour Lab** has a hue **wheel** picker plus an inline **hex** field (type
+`FF5577`); the wheel dialog also has its own editable hex bar and HEX/RGB/HSV
+readouts. Whatever colour you choose can be blended in as **Recolour to**
+(`colorize` from the colour's hue/sat), **Tint**, **Solid fill** (`solidColor`),
+or **Gradient** (`gradientMap` black → colour). These stack with presets and the
+sliders. Hex parsing accepts `#rrggbb` / `#aarrggbb` (see `parseHexColor`).
 
 ## Crop / trim / background removal (UI)
 The **Edit** tab applies geometry + background ops (see also

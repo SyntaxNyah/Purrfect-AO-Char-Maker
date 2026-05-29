@@ -45,6 +45,16 @@ One-command everything: `scripts/build_all.ps1` (Windows) / `scripts/build_all.s
 (Linux/macOS). CI that compiles all platforms + publishes the web build:
 `.github/workflows/build.yml` (triggers on a `v*` tag).
 
+### Key dependencies (`pubspec.yaml`)
+- `image` — decode/encode + pixel ops (the engine backbone).
+- `ffi` — native libwebp/libwebpmux bindings (`imaging/webp_codec_io.dart`).
+- `file_picker` — file picking (folder picking lives in `platform/folder_picker*`).
+- `archive` — `.zip` export. `path` / `path_provider` — paths. `collection`.
+- `provider` — UI state. `flutter_colorpicker` — the Colour Lab colour wheel +
+  hex bar (`ui/screens/color_lab_screen.dart`).
+
+After pulling, run `flutter pub get` (CI does this automatically).
+
 ---
 
 ## 2. Directory map
@@ -306,6 +316,11 @@ The central model.
   before adding a screen.
 - `screens/` — home, editor, color_lab, animation_studio, button_studio, edit,
   mixer, bulk, plugins. `widgets/` — `CheckerImage`, `ZoomCanvas`.
+  - `color_lab`: sliders + blendable presets/gradients + a **custom colour**
+    section — inline hex field and a `flutter_colorpicker` hue-wheel dialog
+    (`hexInputBar`, HEX/RGB/HSV labels); picks become `colorize`/`tint`/
+    `solidColor`/`gradientMap` ops on the blend stack.
+  - `edit`: crop / auto-trim / background removal (drives `SpriteEdit`).
 
 ---
 

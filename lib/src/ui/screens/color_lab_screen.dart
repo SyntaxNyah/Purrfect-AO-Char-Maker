@@ -40,6 +40,8 @@ class _ColorLabScreenState extends State<ColorLabScreen> {
   Timer? _debounce;
   Widget? _chipsCache;
   Color _picked = const Color(0xFFFF5577);
+  late final TextEditingController _hexCtrl =
+      TextEditingController(text: _hex6(_picked));
 
   @override
   void initState() {
@@ -53,7 +55,23 @@ class _ColorLabScreenState extends State<ColorLabScreen> {
   void dispose() {
     _debounce?.cancel();
     _preview.dispose();
+    _hexCtrl.dispose();
     super.dispose();
+  }
+
+  /// 6-digit `rrggbb` (no `#`, no alpha) for the inline hex field.
+  String _hex6(Color c) =>
+      (c.value & 0xFFFFFF).toRadixString(16).padLeft(6, '0').toUpperCase();
+
+  void _setPicked(Color c, {bool syncHex = true}) {
+    setState(() => _picked = c);
+    if (syncHex) _hexCtrl.text = _hex6(c);
+  }
+
+  /// Parse the inline hex field (`#rgb`/`rrggbb`/`aarrggbb`) and apply it.
+  void _applyHexField(String raw) {
+    final int? argb = parseHexColor(raw.trim());
+    if (argb != null) _setPicked(Color(argb), syncHex: false);
   }
 
   List<ColorOp> get _pipeline => <ColorOp>[
@@ -209,7 +227,7 @@ class _ColorLabScreenState extends State<ColorLabScreen> {
             onTap: _openPicker,
             child: Container(
               width: 40,
-              height: 28,
+              height: 36,
               decoration: BoxDecoration(
                 color: _picked,
                 border: Border.all(color: Colors.white24),
@@ -218,10 +236,22 @@ class _ColorLabScreenState extends State<ColorLabScreen> {
             ),
           ),
           const SizedBox(width: 8),
-          OutlinedButton.icon(
+          // Type a hex code directly (e.g. FF5577).
+          SizedBox(
+            width: 110,
+            child: TextField(
+              controller: _hexCtrl,
+              decoration: const InputDecoration(prefixText: '#', labelText: 'Hex'),
+              textCapitalization: TextCapitalization.characters,
+              onChanged: _applyHexField,
+              onSubmitted: _applyHexField,
+            ),
+          ),
+          const SizedBox(width: 8),
+          IconButton(
+            tooltip: 'Colour wheel',
             onPressed: _openPicker,
             icon: const Icon(Icons.colorize_rounded),
-            label: const Text('Pick colour…'),
           ),
         ]),
         const SizedBox(height: 8),
@@ -248,7 +278,14 @@ class _ColorLabScreenState extends State<ColorLabScreen> {
           child: ColorPicker(
             pickerColor: _picked,
             enableAlpha: false,
-            onColorChanged: (Color c) => setState(() => _picked = c),
+            paletteType: PaletteType.hueWheel, // an actual colour wheel
+            hexInputBar: true, // editable hex field inside the picker
+            labelTypes: const <ColorLabelType>[
+              ColorLabelType.hex,
+              ColorLabelType.rgb,
+              ColorLabelType.hsv,
+            ],
+            onColorChanged: (Color c) => _setPicked(c),
           ),
         ),
         actions: <Widget>[
