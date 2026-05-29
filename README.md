@@ -115,10 +115,9 @@ See **[docs/BUILD_AND_RUN.md](docs/BUILD_AND_RUN.md)** for per-platform details
 You don't need to compile anything yourself — GitHub Actions does it for every
 platform via [`.github/workflows/build.yml`](.github/workflows/build.yml).
 
-1. **Open the *Actions* tab → the latest "Build binaries" run.** Each platform's
+**Open the *Actions* tab → the latest "Build binaries" run.** Each platform's
    output is under **Artifacts** (`purrfect-windows`, `-linux`, `-macos`,
    `-android-apk`, `-web`). Download and unzip.
-   - No push event? Use **Actions → Build binaries → Run workflow**.
 
 > Builds run **independently of the tests**, so you still get binaries even if a
 > test fails. iOS isn't auto-built (it needs your signing certificate); build it
