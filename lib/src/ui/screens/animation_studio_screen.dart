@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:typed_data';
 
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Easing; // our Easing (Flutter 3.29+ also has one)
 import 'package:provider/provider.dart';
 
 import '../../animation/anim_engine.dart';
