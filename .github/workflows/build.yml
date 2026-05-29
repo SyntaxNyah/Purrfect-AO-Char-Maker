@@ -42,8 +42,10 @@ jobs:
           cache: true
       - run: flutter create .
       - run: flutter pub get
-      - run: flutter analyze --no-fatal-infos --no-fatal-warnings || true
-      - run: flutter test || true # informational; does not block the binaries
+      # Honest signal (fails only on real errors; warnings/infos don't fail it).
+      # This job does NOT gate the binary builds below — they run regardless.
+      - run: flutter analyze --no-fatal-infos --no-fatal-warnings
+      - run: flutter test
 
   windows:
     runs-on: windows-latest
