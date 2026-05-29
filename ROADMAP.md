@@ -26,7 +26,8 @@ Legend: ✅ done · 🟡 partial · ⬜ planned
 - ✅ 33 colour ops incl. split-tone, vignette, scanlines, grain, chroma shift, pixelate
 - ✅ Sprite compositor / mixer (snip + stack layers; head-on-body)
 - ✅ Bulk recolour & format conversion
-- ✅ WebP encode: web (canvas) + native (libwebp via FFI)
+- ✅ Bulk rename (find/replace, prefix/suffix, numbering, case, + sprite files)
+- ✅ WebP encode: web (canvas) + native (libwebp via FFI), bundled in CI builds
 - ✅ Animated WebP export (native via libwebpmux); **WebP is the default output**,
   auto-falling back to APNG where WebP isn't available (web build, or native
   without libwebpmux)

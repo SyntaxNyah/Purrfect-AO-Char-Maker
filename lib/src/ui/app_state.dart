@@ -12,6 +12,7 @@ import '../core/character.dart';
 import '../core/emote.dart';
 import '../core/history.dart';
 import '../core/validator.dart';
+import '../discovery/bulk_rename.dart';
 import '../discovery/character_builder.dart';
 import '../discovery/organizer.dart';
 import '../discovery/sprite_scanner.dart';
@@ -226,6 +227,63 @@ class AppState extends ChangeNotifier {
     return Codecs.encodePng(work);
   }
 
+  /// Bulk-rename emote names (and optionally their sprite files) using [spec].
+  /// Returns the number of emotes whose name changed.
+  Future<int> bulkRename(RenameSpec spec) async {
+    if (character == null || spec.isNoop && !spec.renameSprites) return 0;
+    _setBusy(true, 'Renaming…');
+    int changed = 0;
+    bool movedFiles = false;
+    for (int i = 0; i < character!.emotes.length; i++) {
+      final Emote e = character!.emotes[i];
+
+      if (spec.renameSprites && e.sprite.isNotEmpty && !e.sprite.contains('/')) {
+        final String newSprite = _safeSprite(BulkRename.newName(e.sprite, i, spec));
+        if (newSprite.isNotEmpty && newSprite != e.sprite) {
+          await _renameSpriteFiles(e.sprite, newSprite);
+          e.sprite = newSprite;
+          movedFiles = true;
+        }
+      }
+
+      final String newComment = BulkRename.newName(e.comment, i, spec);
+      if (newComment != e.comment) {
+        e.comment = newComment;
+        changed++;
+      }
+    }
+    if (movedFiles) {
+      // Refresh sprite groups from the renamed files (keeps edits intact).
+      scan = _scanner.fromPaths(await workspace.listFiles());
+      _decodeCache.clear();
+    }
+    history.push(character!);
+    _setBusy(false, 'Renamed $changed emote(s).');
+    return changed;
+  }
+
+  String _safeSprite(String s) => s.replaceAll(RegExp(r'[\\/]+'), '_').trim();
+
+  Future<void> _renameSpriteFiles(String oldBase, String newBase) async {
+    final SpriteGroup? g =
+        scan?.groups.firstWhereOrNull((SpriteGroup g) => g.base == oldBase);
+    if (g == null) return;
+    final List<SpriteFile> files =
+        <SpriteFile?>[g.idle, g.talk, g.post, ...g.statics].whereType<SpriteFile>().toList();
+    for (final SpriteFile f in files) {
+      final String prefix = switch (f.state) {
+        SpriteState.idle => '(a)',
+        SpriteState.talk => '(b)',
+        SpriteState.post => '(c)',
+        SpriteState.staticImage => '',
+      };
+      final String newRel = '$prefix$newBase.${f.ext}';
+      if (newRel != f.relPath && await workspace.exists(f.relPath)) {
+        await workspace.move(f.relPath, newRel);
+      }
+    }
+  }
+
   /// Sprite base names available for mixing/compositing.
   List<String> spriteBases() =>
       (scan?.groups ?? <SpriteGroup>[]).map((SpriteGroup g) => g.base).toList();
@@ -359,13 +417,24 @@ class AppState extends ChangeNotifier {
     List<AnimRecipe> recipes, {
     int frames = 12,
     int fps = 12,
+    int maxEdge = 360,
   }) async {
     final Emote? e = current;
     if (e == null) return <Uint8List>[];
     final String? rel = spriteRelFor(e);
     if (rel == null) return <Uint8List>[];
-    final img.Image? base = await decodeFirstFrame(rel);
+    img.Image? base = await decodeFirstFrame(rel);
     if (base == null) return <Uint8List>[];
+    // Downscale for the live preview so rendering N frames stays snappy (the
+    // real export renders at full resolution).
+    final int longest = base.width > base.height ? base.width : base.height;
+    if (longest > maxEdge) {
+      final double s = maxEdge / longest;
+      base = img.copyResize(base,
+          width: (base.width * s).round(),
+          height: (base.height * s).round(),
+          interpolation: img.Interpolation.average);
+    }
     final AnimClip clip = AnimEngine.render(base, recipes, frames: frames, fps: fps);
     return clip.frames.map((AnimFrame f) => Codecs.encodePng(f.image)).toList();
   }

@@ -132,6 +132,29 @@ class AnimEngine {
     'squashStretch': _squashStretch,
     'twitch': _twitch,
     'breatheGlow': _breatheGlow,
+    'rubberBand': _rubberBand,
+    'jelly': _jelly,
+    'tada': _tada,
+    'rollIn': _rollIn,
+    'rollOut': _rollOut,
+    'spiralIn': _spiralIn,
+    'levitate': _levitate,
+    'recoil': _recoil,
+    'lunge': _lunge,
+    'duck': _duck,
+    'sideStep': _sideStep,
+    'figure8': _figure8,
+    'tiltShake': _tiltShake,
+    'zoomBounce': _zoomBounce,
+    'fadeBlink': _fadeBlink,
+    'desaturatePulse': _desaturatePulse,
+    'colorFlash': _colorFlash,
+    'ghostFloat': _ghostFloat,
+    'rainbowGlow': _rainbowGlow,
+    'matrixGlitch': _matrixGlitch,
+    'emphasisPop': _emphasisPop,
+    'breatheHeavy': _breatheHeavy,
+    'sheen': _sheen,
   };
 
   static List<String> get recipeTypes => _registry.keys.toList()..sort();
@@ -477,5 +500,143 @@ class AnimEngine {
     final FrameSpec s = _breathe(t, r);
     s.add(_glow(t, r));
     return s;
+  }
+
+  static FrameSpec _rubberBand(double t, AnimRecipe r) {
+    final double a = r.n('intensity', 12) / 100.0 * math.sin(_tau(t, r.n('cycles', 1)));
+    return FrameSpec()
+      ..scaleX = 1 + a
+      ..scaleY = 1 - a;
+  }
+
+  static FrameSpec _jelly(double t, AnimRecipe r) {
+    final double c = r.n('cycles', 2);
+    final double a = r.n('intensity', 10) / 100.0;
+    return FrameSpec()
+      ..scaleX = 1 + a * math.sin(_tau(t, c))
+      ..scaleY = 1 + a * math.sin(_tau(t, c) + math.pi / 2)
+      ..angle = r.n('intensity', 10) * 0.2 * math.sin(_tau(t, c));
+  }
+
+  static FrameSpec _tada(double t, AnimRecipe r) {
+    final double s = 1 + r.n('intensity', 10) / 100.0 * (0.5 + 0.5 * math.sin(_tau(t, r.n('cycles', 1))));
+    return FrameSpec()
+      ..scale = s
+      ..angle = r.n('intensity', 10) * 0.5 * math.sin(_tau(t, r.n('cycles', 3)));
+  }
+
+  static FrameSpec _rollIn(double t, AnimRecipe r) => FrameSpec()
+    ..dx = -r.n('intensity', 40) * (1 - t)
+    ..angle = -180.0 * (1 - t);
+
+  static FrameSpec _rollOut(double t, AnimRecipe r) => FrameSpec()
+    ..dx = r.n('intensity', 40) * t
+    ..angle = 180.0 * t;
+
+  static FrameSpec _spiralIn(double t, AnimRecipe r) => FrameSpec()
+    ..scale = t.clamp(0.05, 1).toDouble()
+    ..angle = 360.0 * r.n('cycles', 1) * (1 - t)
+    ..opacity = t;
+
+  static FrameSpec _levitate(double t, AnimRecipe r) {
+    final double phase = _tau(t, r.n('cycles', 1));
+    return FrameSpec()
+      ..dy = r.n('intensity', 6) * math.sin(phase)
+      ..scale = 1 + r.n('intensity', 6) / 400.0 * math.sin(phase);
+  }
+
+  static FrameSpec _recoil(double t, AnimRecipe r) {
+    // Quick knock back near the start of the loop, then settle.
+    final double hit = math.max(0, math.sin(math.pi * (1 - t))).toDouble();
+    return FrameSpec()..dx = -r.n('intensity', 14) * hit * hit;
+  }
+
+  static FrameSpec _lunge(double t, AnimRecipe r) =>
+      FrameSpec()..dx = r.n('intensity', 14) * math.sin(_tau(t, r.n('cycles', 1)));
+
+  static FrameSpec _duck(double t, AnimRecipe r) {
+    final double d = (0.5 - 0.5 * math.cos(_tau(t, r.n('cycles', 1))));
+    return FrameSpec()
+      ..dy = r.n('intensity', 12) * d
+      ..scaleY = 1 - 0.12 * d;
+  }
+
+  static FrameSpec _sideStep(double t, AnimRecipe r) =>
+      FrameSpec()..dx = r.n('intensity', 8) * math.sin(_tau(t, r.n('cycles', 1))).sign;
+
+  static FrameSpec _figure8(double t, AnimRecipe r) {
+    final double rad = r.n('intensity', 8);
+    return FrameSpec()
+      ..dx = rad * math.sin(_tau(t, r.n('cycles', 1)))
+      ..dy = rad * 0.5 * math.sin(_tau(t, r.n('cycles', 2)));
+  }
+
+  static FrameSpec _tiltShake(double t, AnimRecipe r) => FrameSpec()
+    ..angle = r.n('intensity', 6) * math.sin(_tau(t, r.n('cycles', 10)));
+
+  static FrameSpec _zoomBounce(double t, AnimRecipe r) => FrameSpec()
+    ..scale = 1 + r.n('intensity', 10) / 100.0 * math.sin(_tau(t, r.n('cycles', 1))).abs();
+
+  static FrameSpec _fadeBlink(double t, AnimRecipe r) {
+    final int step = (t * r.n('cycles', 4) * 2).floor();
+    return FrameSpec()..opacity = step.isEven ? 1.0 : (1 - r.n('intensity', 0.8)).clamp(0.0, 1.0);
+  }
+
+  static FrameSpec _desaturatePulse(double t, AnimRecipe r) {
+    final double amt = 0.5 + 0.5 * math.sin(_tau(t, r.n('cycles', 1)));
+    return FrameSpec()
+      ..colorOps.add(ColorOp('saturation',
+          nums: <String, double>{'amount': (1 - r.n('intensity', 0.8) * amt).clamp(0.0, 1.0)}));
+  }
+
+  static FrameSpec _colorFlash(double t, AnimRecipe r) {
+    final double amt = math.pow(0.5 + 0.5 * math.sin(_tau(t, r.n('cycles', 1))), 4).toDouble();
+    return FrameSpec()
+      ..colorOps.add(ColorOp('tint',
+          nums: <String, double>{'amount': r.n('intensity', 0.6) * amt},
+          strs: <String, String>{'color': r.colors['color'] ?? '#FFFFFFFF'}));
+  }
+
+  static FrameSpec _ghostFloat(double t, AnimRecipe r) {
+    final double phase = _tau(t, r.n('cycles', 1));
+    final FrameSpec s = FrameSpec()
+      ..dy = r.n('intensity', 5) * math.sin(phase)
+      ..opacity = 0.75 + 0.2 * math.sin(phase);
+    s.colorOps.add(ColorOp('tint',
+        nums: <String, double>{'amount': 0.25},
+        strs: <String, String>{'color': r.colors['color'] ?? '#FFAEEAFF'}));
+    return s;
+  }
+
+  static FrameSpec _rainbowGlow(double t, AnimRecipe r) {
+    final FrameSpec s = _rainbow(t, r);
+    s.add(_glow(t, r));
+    return s;
+  }
+
+  static FrameSpec _matrixGlitch(double t, AnimRecipe r) {
+    final FrameSpec s = _glitch(t, r);
+    s.colorOps.add(ColorOp('tint',
+        nums: <String, double>{'amount': 0.35},
+        strs: <String, String>{'color': r.colors['color'] ?? '#FF35FF6A'}));
+    return s;
+  }
+
+  static FrameSpec _emphasisPop(double t, AnimRecipe r) {
+    final FrameSpec s = _pop(t, r);
+    s.add(_glow(t, r));
+    return s;
+  }
+
+  static FrameSpec _breatheHeavy(double t, AnimRecipe r) => FrameSpec()
+    ..scale = 1 + r.n('intensity', 8) / 100.0 * (0.5 + 0.5 * math.sin(_tau(t, r.n('cycles', 1))))
+    ..dy = r.n('intensity', 8) * 0.2 * math.sin(_tau(t, r.n('cycles', 1)));
+
+  static FrameSpec _sheen(double t, AnimRecipe r) {
+    // A brightness sweep that passes through, like a light glint.
+    final double g = math.exp(-math.pow((t - 0.5) * 6, 2)).toDouble();
+    return FrameSpec()
+      ..colorOps.add(ColorOp('brightness',
+          nums: <String, double>{'amount': 1 + r.n('intensity', 0.8) * g}));
   }
 }

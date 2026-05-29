@@ -60,18 +60,25 @@ jobs:
       - run: flutter create .
       - run: flutter pub get
       - run: flutter build windows --release
-      # Bundle libwebp DLLs next to the .exe so WebP works out of the box.
-      - name: Bundle libwebp
+      # Bundle libwebp + libwebpmux DLLs next to the .exe so WebP — including
+      # ANIMATED WebP (which needs the mux library) — works out of the box.
+      - name: Bundle libwebp (+mux for animated WebP)
         continue-on-error: true
         shell: pwsh
         run: |
+          # Base install guarantees libwebp; the second adds the mux/demux
+          # features that provide WebPAnimEncoder (animated WebP).
           vcpkg install libwebp:x64-windows
+          vcpkg install "libwebp[core,mux,demux,simd]:x64-windows"
           $bin = "$env:VCPKG_INSTALLATION_ROOT\installed\x64-windows\bin"
           $dst = "build\windows\x64\runner\Release"
           Get-ChildItem $bin -Filter *.dll |
             Where-Object { $_.Name -match 'webp|sharpyuv' } |
             ForEach-Object { Copy-Item $_.FullName $dst -Force }
-          Get-ChildItem $dst -Filter *.dll | Select-Object Name
+          Write-Host "Bundled DLLs:"; Get-ChildItem $dst -Filter *.dll | Select-Object Name
+          if (-not (Get-ChildItem $dst -Filter '*webpmux*.dll')) {
+            Write-Warning "libwebpmux DLL not found — animated WebP may be unavailable on Windows."
+          }
       - uses: actions/upload-artifact@v4
         with:
           name: purrfect-windows
@@ -87,18 +94,25 @@ jobs:
       - run: flutter create .
       - run: flutter pub get
       - run: flutter build linux --release
-      # Bundle libwebp .so's into the app's lib/ so WebP works out of the box.
-      - name: Bundle libwebp
+      # Bundle libwebp + libwebpmux (+sharpyuv) into the app's lib/ so WebP —
+      # including ANIMATED WebP (needs mux) — works out of the box. We copy the
+      # versioned .so AND a plain-named copy, which is what the loader looks for
+      # and which lets the mux lib resolve its libwebp dependency by soname.
+      - name: Bundle libwebp (+mux for animated WebP)
         continue-on-error: true
         run: |
           sudo apt-get install -y libwebp7 libwebpmux3 libsharpyuv0 || true
           dst=build/linux/x64/release/bundle/lib
           mkdir -p "$dst"
-          for so in libsharpyuv.so.0 libwebp.so.7 libwebpmux.so.3; do
-            src=$(ldconfig -p | grep -m1 "$so" | awk '{print $NF}')
-            if [ -n "$src" ]; then cp -v "$src" "$dst/"; else echo "missing $so"; fi
+          for stem in libsharpyuv libwebp libwebpmux; do
+            for src in $(ldconfig -p | awk -v s="$stem.so" 'index($0,s){print $NF}'); do
+              cp -fL "$src" "$dst/$(basename "$src")" 2>/dev/null || true
+            done
+            v=$(ls "$dst/$stem".so.* 2>/dev/null | head -1)
+            [ -n "$v" ] && cp -f "$v" "$dst/$stem.so" || true
           done
           ls -la "$dst"
+          ls "$dst" | grep -q webpmux || echo "::warning::libwebpmux not bundled — animated WebP may be unavailable on Linux"
       - uses: actions/upload-artifact@v4
         with:
           name: purrfect-linux
@@ -151,6 +165,30 @@ jobs:
         with: { flutter-version: "${{ env.FLUTTER_VERSION }}", channel: stable, cache: true }
       - run: flutter create .
       - run: flutter pub get
+      # Build libwebp + libwebpmux (+sharpyuv) for each ABI with the NDK and drop
+      # them into jniLibs, so the APK ships with WebP — including ANIMATED WebP —
+      # working out of the box. Must run before `flutter build apk`.
+      - name: Build & bundle libwebp (+mux) for Android
+        continue-on-error: true
+        run: |
+          NDK="${ANDROID_NDK_LATEST_HOME:-${ANDROID_NDK_HOME:-$ANDROID_NDK_ROOT}}"
+          echo "Using NDK: $NDK"
+          git clone --depth 1 https://chromium.googlesource.com/webm/libwebp /tmp/libwebp
+          for abi in arm64-v8a armeabi-v7a x86_64; do
+            cmake -S /tmp/libwebp -B "/tmp/libwebp/b-$abi" \
+              -DCMAKE_TOOLCHAIN_FILE="$NDK/build/cmake/android.toolchain.cmake" \
+              -DANDROID_ABI="$abi" -DANDROID_PLATFORM=android-21 \
+              -DBUILD_SHARED_LIBS=ON \
+              -DWEBP_BUILD_CWEBP=OFF -DWEBP_BUILD_DWEBP=OFF -DWEBP_BUILD_GIF2WEBP=OFF \
+              -DWEBP_BUILD_IMG2WEBP=OFF -DWEBP_BUILD_VWEBP=OFF -DWEBP_BUILD_WEBPINFO=OFF \
+              -DWEBP_BUILD_WEBPMUX=ON -DWEBP_BUILD_ANIM_UTILS=OFF -DWEBP_BUILD_EXTRAS=OFF
+            cmake --build "/tmp/libwebp/b-$abi" -j4
+            dst="android/app/src/main/jniLibs/$abi"
+            mkdir -p "$dst"
+            find "/tmp/libwebp/b-$abi" \( -name 'libwebp.so' -o -name 'libwebpmux.so' -o -name 'libsharpyuv.so' \) -exec cp -v {} "$dst/" \;
+            ls -la "$dst" || true
+            ls "$dst" | grep -q webpmux || echo "::warning::libwebpmux missing for $abi — animated WebP may be unavailable"
+          done
       - run: flutter build apk --release
       - uses: actions/upload-artifact@v4
         with:

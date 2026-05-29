@@ -11,6 +11,9 @@ import '../../presets/presets.dart';
 import '../app_state.dart';
 import '../widgets/checker_image.dart';
 
+/// One-click animation. Performance: rendering is debounced and the looping
+/// playback only updates a [ValueNotifier] (so it doesn't rebuild the whole
+/// screen each frame); the long preset/effect chip lists are built once.
 class AnimationStudioScreen extends StatefulWidget {
   const AnimationStudioScreen({super.key});
 
@@ -24,35 +27,57 @@ class _AnimationStudioScreenState extends State<AnimationStudioScreen> {
   int _fps = 12;
   String _ease = 'linear';
 
-  List<Uint8List> _previewFrames = <Uint8List>[];
-  int _frameIdx = 0;
-  Timer? _timer;
+  List<Uint8List> _frameImgs = <Uint8List>[];
+  final ValueNotifier<int> _frameIdx = ValueNotifier<int>(0);
+  Timer? _player;
+  Timer? _debounce;
+  Widget? _presetChips;
+  Widget? _effectChips;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _render();
+    });
+  }
 
   @override
   void dispose() {
-    _timer?.cancel();
+    _player?.cancel();
+    _debounce?.cancel();
+    _frameIdx.dispose();
     super.dispose();
   }
 
-  Future<void> _rebuild(AppState app) async {
-    final List<Uint8List> frames =
-        await app.renderAnimationPreview(_recipes, frames: _frames, fps: _fps);
-    _timer?.cancel();
+  void _schedule() {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 160), _render);
+  }
+
+  Future<void> _render() async {
+    final AppState app = context.read<AppState>();
+    final int n = _recipes.isEmpty ? 1 : _frames;
+    final List<Uint8List> imgs =
+        await app.renderAnimationPreview(_recipes, frames: n, fps: _fps);
     if (!mounted) return;
-    setState(() {
-      _previewFrames = frames;
-      _frameIdx = 0;
-    });
-    if (frames.length > 1) {
-      _timer = Timer.periodic(
+    _player?.cancel();
+    // setState (once per debounced render) refreshes the displayed frame; the
+    // per-frame playback below only pokes the ValueNotifier, never setState.
+    setState(() => _frameImgs = imgs);
+    _frameIdx.value = 0;
+    if (imgs.length > 1) {
+      _player = Timer.periodic(
         Duration(milliseconds: (1000 / _fps).round()),
-        (_) => setState(
-            () => _frameIdx = (_frameIdx + 1) % _previewFrames.length),
+        (_) {
+          if (_frameImgs.isEmpty) return;
+          _frameIdx.value = (_frameIdx.value + 1) % _frameImgs.length;
+        },
       );
     }
   }
 
-  void _applyPreset(AnimPreset preset, AppState app) {
+  void _applyPreset(AnimPreset preset) {
     setState(() {
       _recipes
         ..clear()
@@ -60,20 +85,20 @@ class _AnimationStudioScreenState extends State<AnimationStudioScreen> {
       _frames = preset.frames;
       _fps = preset.fps;
     });
-    _rebuild(app);
+    _schedule();
   }
 
-  void _addRecipe(String type, AppState app) {
+  void _addRecipe(String type) {
     setState(() => _recipes.add(AnimRecipe(type,
         p: <String, double>{'intensity': 6, 'cycles': 1}, ease: _ease)));
-    _rebuild(app);
+    _schedule();
   }
 
   @override
   Widget build(BuildContext context) {
-    final AppState app = context.watch<AppState>();
-    final Uint8List? frame =
-        _previewFrames.isEmpty ? null : _previewFrames[_frameIdx % _previewFrames.length];
+    final AppState app = context.read<AppState>();
+    _presetChips ??= _buildPresetChips();
+    _effectChips ??= _buildEffectChips();
 
     return Row(
       children: <Widget>[
@@ -88,7 +113,15 @@ class _AnimationStudioScreenState extends State<AnimationStudioScreen> {
                       ? const Center(child: Text('Select an emote to animate it.'))
                       : ClipRRect(
                           borderRadius: BorderRadius.circular(12),
-                          child: CheckerImage(bytes: frame),
+                          child: ValueListenableBuilder<int>(
+                            valueListenable: _frameIdx,
+                            builder: (_, int idx, __) {
+                              final Uint8List? b = _frameImgs.isEmpty
+                                  ? null
+                                  : _frameImgs[idx % _frameImgs.length];
+                              return CheckerImage(bytes: b);
+                            },
+                          ),
                         ),
                 ),
                 const SizedBox(height: 8),
@@ -117,7 +150,7 @@ class _AnimationStudioScreenState extends State<AnimationStudioScreen> {
           divisions: 46,
           onChanged: (double v) {
             setState(() => _frames = v.round());
-            _rebuild(app);
+            _schedule();
           },
         ),
         Text('Speed: $_fps fps'),
@@ -128,7 +161,7 @@ class _AnimationStudioScreenState extends State<AnimationStudioScreen> {
           divisions: 26,
           onChanged: (double v) {
             setState(() => _fps = v.round());
-            _rebuild(app);
+            _schedule();
           },
         ),
         Row(children: <Widget>[
@@ -150,7 +183,7 @@ class _AnimationStudioScreenState extends State<AnimationStudioScreen> {
                     r.ease = e;
                   }
                 });
-                _rebuild(app);
+                _schedule();
               },
             ),
           ),
@@ -180,50 +213,29 @@ class _AnimationStudioScreenState extends State<AnimationStudioScreen> {
             tooltip: 'Clear',
             onPressed: () {
               setState(() => _recipes.clear());
-              _rebuild(app);
+              _schedule();
             },
             icon: const Icon(Icons.clear_all_rounded),
           ),
         ]),
-        const Divider(height: 24),
-        Text('Presets', style: Theme.of(context).textTheme.titleMedium),
-        const SizedBox(height: 8),
-        Wrap(
-          spacing: 6,
-          runSpacing: 6,
-          children: <Widget>[
-            for (final AnimPreset preset in ExtensionRegistry.instance.animPresets)
-              ActionChip(
-                label: Text(preset.name),
-                onPressed: () => _applyPreset(preset, app),
-              ),
-          ],
-        ),
-        const Divider(height: 24),
-        Text('Add an effect', style: Theme.of(context).textTheme.titleMedium),
-        const SizedBox(height: 8),
-        Wrap(
-          spacing: 6,
-          runSpacing: 6,
-          children: <Widget>[
-            for (final String type in AnimEngine.recipeTypes)
-              if (type != 'none')
-                InputChip(
-                  label: Text(type),
-                  onPressed: () => _addRecipe(type, app),
-                ),
-          ],
-        ),
         if (_recipes.isNotEmpty) ...<Widget>[
           const Divider(height: 24),
           Text('Effect strength', style: Theme.of(context).textTheme.titleMedium),
-          for (int i = 0; i < _recipes.length; i++) _recipeTuner(i, app),
+          for (int i = 0; i < _recipes.length; i++) _recipeTuner(i),
         ],
+        const Divider(height: 24),
+        Text('Presets', style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 8),
+        _presetChips ?? const SizedBox.shrink(),
+        const Divider(height: 24),
+        Text('Add an effect', style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 8),
+        _effectChips ?? const SizedBox.shrink(),
       ],
     );
   }
 
-  Widget _recipeTuner(int i, AppState app) {
+  Widget _recipeTuner(int i) {
     final AnimRecipe r = _recipes[i];
     final double intensity = r.n('intensity', 6);
     return Column(
@@ -235,7 +247,7 @@ class _AnimationStudioScreenState extends State<AnimationStudioScreen> {
             icon: const Icon(Icons.close, size: 16),
             onPressed: () {
               setState(() => _recipes.removeAt(i));
-              _rebuild(app);
+              _schedule();
             },
           ),
         ]),
@@ -244,9 +256,32 @@ class _AnimationStudioScreenState extends State<AnimationStudioScreen> {
           max: 40,
           onChanged: (double v) {
             setState(() => r.p['intensity'] = v);
-            _rebuild(app);
+            _schedule();
           },
         ),
+      ],
+    );
+  }
+
+  Widget _buildPresetChips() {
+    return Wrap(
+      spacing: 6,
+      runSpacing: 6,
+      children: <Widget>[
+        for (final AnimPreset preset in ExtensionRegistry.instance.animPresets)
+          ActionChip(label: Text(preset.name), onPressed: () => _applyPreset(preset)),
+      ],
+    );
+  }
+
+  Widget _buildEffectChips() {
+    return Wrap(
+      spacing: 6,
+      runSpacing: 6,
+      children: <Widget>[
+        for (final String type in AnimEngine.recipeTypes)
+          if (type != 'none')
+            InputChip(label: Text(type), onPressed: () => _addRecipe(type)),
       ],
     );
   }

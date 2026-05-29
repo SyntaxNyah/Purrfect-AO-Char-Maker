@@ -144,13 +144,15 @@ flattening his shading).
    sprite).
 2. In **Colour Lab**, drag the sliders — the preview updates live:
    - **Hue** (shift colours), **Saturation**, **Brightness**, **Contrast**.
-3. Or click a **Preset** chip (there are hundreds — "Make it Pink", "Vaporwave",
-   "CRT", "Sepia", "Teal & Orange", …) or a **Gradient map** chip (Fire, Ice,
-   Rainbow, …).
+3. Tap **Preset** chips (there are hundreds — "Make it Pink", "Vaporwave",
+   "CRT", "Sepia", "Teal & Orange", …) and **Gradient map** chips (Fire, Ice,
+   Rainbow, …). They **blend (stack)** on top of each other and your sliders, so
+   you can combine several — each one you add shows as a chip under "Blended"
+   with an ✕ to remove it.
 4. Apply it:
    - **Apply** — bakes the look into **this** sprite.
    - **All sprites** — applies it to **every** sprite (great for a uniform theme).
-5. **Reset** clears the current adjustment.
+5. **Reset** clears the sliders and the blend stack.
 
 > "Make it `<colour>`" presets keep the original light/shadow, so recolours look
 > natural.
@@ -195,7 +197,7 @@ cropped to a centred square, and scaled). This tab lets you check them.
 
 1. Select an emote.
 2. See its auto button in the preview box.
-3. Drag **Button size** (default 40 px — AO's recommended minimum).
+3. Drag **Button size** (default **128 px**; 40 px is AO's bare minimum, up to 256).
 4. **Export character (.zip) with auto buttons** writes them all into
    `emotions/`.
 
@@ -230,6 +232,14 @@ animate the result in the Animate tab — a mixed sprite is just a normal sprite
    pipeline".
 2. In **Bulk**, the Recolour card shows how many ops are in it.
 3. Click **Recolour ALL sprites**.
+
+**Bulk rename emotes**
+- **Find / Replace** (e.g. find `_` replace with a space), add a **Prefix** or
+  **Suffix**, **Number** them with a template (`{n}` = number, `{name}` =
+  current name, e.g. `Emote {n}`), and pick a **Case** (Title/lower/UPPER).
+- Tick **Also rename the sprite files** to rename the underlying `(a)`/`(b)`/
+  static files too (root sprites), not just the labels.
+- **Apply rename to ALL emotes**. (Undo is available back in the Emotes tab.)
 
 **Convert format**
 1. Pick a **format** (default **WebP**; also PNG/APNG, GIF).

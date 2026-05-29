@@ -241,11 +241,15 @@ The central model.
   `render(base,recipes,{frames,fps,loop})`→AnimClip (global recipes sum; region
   recipes composite as layers), `renderSpec(base,specAt,{frames,fps})` (used by
   Timeline).
-- Built-in recipe ids (40+): none, sway, bob, bounce, float, breathe, shake,
-  spin, tilt, wiggle, zoomPulse, jump, glow, flash, pulse, rainbow, tintPulse,
-  fadeIn, fadeOut, throb, nod, headShake, swing, drift, orbit, heartbeat,
-  strobe, flicker, neon, hologram, glitch, colorCycle, wave, pendulum, vibrate,
-  pop, wobble, slideIn, slideOut, squashStretch, twitch, breatheGlow.
+- Built-in recipe ids (~74): sway, bob, bounce, float, breathe, shake, spin,
+  tilt, wiggle, zoomPulse, jump, glow, flash, pulse, rainbow, tintPulse, fadeIn,
+  fadeOut, throb, nod, headShake, swing, drift, orbit, heartbeat, strobe,
+  flicker, neon, hologram, glitch, colorCycle, wave, pendulum, vibrate, pop,
+  wobble, slideIn, slideOut, squashStretch, twitch, breatheGlow, rubberBand,
+  jelly, tada, rollIn, rollOut, spiralIn, levitate, recoil, lunge, duck,
+  sideStep, figure8, tiltShake, zoomBounce, fadeBlink, desaturatePulse,
+  colorFlash, ghostFloat, rainbowGlow, matrixGlitch, emphasisPop, breatheHeavy,
+  sheen, … (discover at runtime via `AnimEngine.recipeTypes`).
 
 ### animation/timeline.dart
 - `class Keyframe({time,dx,dy,scale,angle,opacity,hue,ease})` — `.toJson/fromJson`.
