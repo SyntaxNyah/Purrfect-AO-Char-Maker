@@ -24,7 +24,7 @@ class OrganizeConfig {
     this.targetCharDir,
     this.deleteOriginals = false,
     this.generateButtons = true,
-    this.buttonSize = CharFolder.recommendedButtonSize,
+    this.buttonSize = CharFolder.defaultButtonSize,
     this.overwriteExistingButtons = false,
   });
 

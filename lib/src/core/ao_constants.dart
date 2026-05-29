@@ -238,6 +238,9 @@ class CharFolder {
   /// Recommended minimum button edge in pixels (1:1).
   static const int recommendedButtonSize = 40;
 
+  /// Default button edge the app generates at (crisp on modern/high-DPI themes).
+  static const int defaultButtonSize = 128;
+
   /// Recommended minimum char_icon edge in pixels (1:1).
   static const int recommendedIconSize = 60;
 

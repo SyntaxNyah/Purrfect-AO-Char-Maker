@@ -15,7 +15,7 @@ class ButtonStudioScreen extends StatefulWidget {
 }
 
 class _ButtonStudioScreenState extends State<ButtonStudioScreen> {
-  int _size = CharFolder.recommendedButtonSize;
+  int _size = CharFolder.defaultButtonSize;
 
   @override
   Widget build(BuildContext context) {
@@ -61,12 +61,12 @@ class _ButtonStudioScreenState extends State<ButtonStudioScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    Text('Button size: $_size px'),
+                    Text('Button size: $_size px (default 128)'),
                     Slider(
-                      value: _size.toDouble(),
+                      value: _size.toDouble().clamp(24, 256),
                       min: 24,
-                      max: 128,
-                      divisions: 104,
+                      max: 256,
+                      divisions: 232,
                       onChanged: (double v) => setState(() => _size = v.round()),
                     ),
                     const SizedBox(height: 8),

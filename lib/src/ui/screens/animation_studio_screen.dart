@@ -164,12 +164,12 @@ class _AnimationStudioScreenState extends State<AnimationStudioScreen> {
                   : () => app.saveAnimation(_recipes,
                       frames: _frames, fps: _fps, prefix: '(b)'),
               icon: const Icon(Icons.save_rounded),
-              label: const Text('Save (b) talk (WebP)'),
+              label: const Text('Save as (b) talk (WebP)'),
             ),
           ),
           const SizedBox(width: 6),
           IconButton(
-            tooltip: 'Save as (a) idle (WebP, falls back to APNG)',
+            tooltip: 'Save as (a) idle (WebP)',
             onPressed: _recipes.isEmpty
                 ? null
                 : () => app.saveAnimation(_recipes,

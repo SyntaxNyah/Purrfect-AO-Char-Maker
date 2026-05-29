@@ -1,9 +1,10 @@
 import 'dart:ffi' as ffi;
-import 'dart:io' show Platform;
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:ffi/ffi.dart';
 import 'package:image/image.dart' as img;
+import 'package:path/path.dart' as p;
 
 import 'webp_codec.dart';
 
@@ -78,6 +79,16 @@ class NativeWebpEncoder implements WebpEncoder {
   bool get supportsLossless => _encLossless != null && _free != null;
 
   void _tryLoad() {
+    // Preload libwebp's own dependency so that, when we open libwebp/libwebpmux
+    // by absolute path, their NEEDED `libsharpyuv` is already resolved by soname
+    // (matters on Linux/macOS; harmless elsewhere).
+    for (final String n in candidateLibs('libsharpyuv')) {
+      if (n == '<process>') continue;
+      try {
+        ffi.DynamicLibrary.open(n);
+        break;
+      } catch (_) {}
+    }
     for (final String name in _candidateLibs()) {
       try {
         final ffi.DynamicLibrary lib = name == '<process>'
@@ -95,24 +106,54 @@ class NativeWebpEncoder implements WebpEncoder {
     }
   }
 
-  List<String> _candidateLibs() {
-    if (Platform.isWindows) {
-      return <String>['libwebp.dll', 'webp.dll'];
+  /// Directory of the running executable (where release builds bundle the lib).
+  static String? get _exeDir {
+    try {
+      return File(Platform.resolvedExecutable).parent.path;
+    } catch (_) {
+      return null;
     }
-    if (Platform.isMacOS) {
-      return <String>[
-        'libwebp.dylib',
-        '/opt/homebrew/lib/libwebp.dylib',
-        '/usr/local/lib/libwebp.dylib',
-        '<process>',
-      ];
-    }
-    if (Platform.isIOS) {
-      return <String>['<process>'];
-    }
-    // Linux / Android
-    return <String>['libwebp.so', 'libwebp.so.7', 'libwebp.so.6'];
   }
+
+  /// Candidate paths for a libwebp-family library, checked in order. Paths next
+  /// to the executable come first so a *bundled* copy (shipped with release
+  /// builds) wins over anything system-wide.
+  static List<String> candidateLibs(String stem) {
+    // stem is e.g. 'libwebp' or 'libwebpmux'.
+    final String? dir = _exeDir;
+    final List<String> out = <String>[];
+    if (Platform.isWindows) {
+      final String dll = '$stem.dll';
+      if (dir != null) out.add(p.join(dir, dll));
+      out.add(dll);
+      out.add('${stem.replaceFirst('lib', '')}.dll'); // webp.dll / webpmux.dll
+    } else if (Platform.isMacOS) {
+      final String dylib = '$stem.dylib';
+      if (dir != null) {
+        out.add(p.join(dir, dylib));
+        out.add(p.normalize(p.join(dir, '..', 'Frameworks', dylib)));
+      }
+      out.addAll(<String>[
+        dylib,
+        '/opt/homebrew/lib/$dylib',
+        '/usr/local/lib/$dylib',
+      ]);
+    } else if (Platform.isIOS) {
+      out.add('<process>');
+    } else {
+      // Linux / Android
+      if (dir != null) {
+        out.add(p.join(dir, 'lib', '$stem.so'));
+        out.add(p.join(dir, 'lib', '$stem.so.7'));
+        out.add(p.join(dir, '$stem.so'));
+      }
+      out.addAll(<String>['$stem.so', '$stem.so.7', '$stem.so.6', '$stem.so.3']);
+    }
+    out.add('<process>'); // last resort: statically linked into the runner
+    return out;
+  }
+
+  List<String> _candidateLibs() => candidateLibs('libwebp');
 
   @override
   Future<WebpResult> encode(img.Image image,
@@ -284,16 +325,8 @@ class NativeWebpEncoder implements WebpEncoder {
   }
 
   ffi.DynamicLibrary? _openMux() {
-    final List<String> names = Platform.isWindows
-        ? <String>['libwebpmux.dll', 'webpmux.dll']
-        : Platform.isMacOS
-            ? <String>[
-                'libwebpmux.dylib',
-                '/opt/homebrew/lib/libwebpmux.dylib',
-                '/usr/local/lib/libwebpmux.dylib',
-              ]
-            : <String>['libwebpmux.so', 'libwebpmux.so.3'];
-    for (final String n in names) {
+    for (final String n in candidateLibs('libwebpmux')) {
+      if (n == '<process>') continue;
       try {
         return ffi.DynamicLibrary.open(n);
       } catch (_) {}

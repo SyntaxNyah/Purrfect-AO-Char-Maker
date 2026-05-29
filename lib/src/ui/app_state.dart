@@ -209,15 +209,18 @@ class AppState extends ChangeNotifier {
   /// PNG bytes of [rel] with [pipeline] applied to a downscaled copy — used for
   /// the real-time Colour Lab preview.
   Future<Uint8List?> previewWithPipeline(String rel, List<ColorOp> pipeline,
-      {int maxEdge = 320}) async {
+      {int maxEdge = 640}) async {
     final img.Image? src = await decodeFirstFrame(rel);
     if (src == null) return null;
     img.Image work = src.clone();
     final int longest = work.width > work.height ? work.width : work.height;
     if (longest > maxEdge) {
       final double s = maxEdge / longest;
+      // Use a good downscale filter so the preview isn't pixelated.
       work = img.copyResize(work,
-          width: (work.width * s).round(), height: (work.height * s).round());
+          width: (work.width * s).round(),
+          height: (work.height * s).round(),
+          interpolation: img.Interpolation.average);
     }
     if (pipeline.isNotEmpty) ImageOps.applyAll(work, pipeline);
     return Codecs.encodePng(work);
@@ -374,9 +377,11 @@ class AppState extends ChangeNotifier {
     int frames = 12,
     int fps = 12,
     String prefix = SpritePrefix.talk,
+    // WebP is the default. Lossless by default so quality is preserved. Falls
+    // back to APNG only if the platform genuinely can't encode WebP.
     bool preferWebp = true,
-    bool lossless = false,
-    int quality = 90,
+    bool lossless = true,
+    int quality = 95,
   }) async {
     final Emote? e = current;
     if (e == null) return null;
@@ -404,8 +409,9 @@ class AppState extends ChangeNotifier {
     final String outRel = '$prefix$spriteName.$ext';
     await workspace.writeBytes(outRel, bytes);
     _decodeCache.clear();
-    final String note =
-        ext == 'webp' ? 'animated WebP' : 'APNG (WebP unavailable here)';
+    final String note = ext == 'webp'
+        ? 'WebP'
+        : 'APNG (WebP encoder not found here — release builds ship with it)';
     _setBusy(false, 'Saved $outRel as $note.');
     return saveBytes('$prefix$spriteName.$ext', bytes);
   }

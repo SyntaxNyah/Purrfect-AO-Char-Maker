@@ -60,6 +60,18 @@ jobs:
       - run: flutter create .
       - run: flutter pub get
       - run: flutter build windows --release
+      # Bundle libwebp DLLs next to the .exe so WebP works out of the box.
+      - name: Bundle libwebp
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          vcpkg install libwebp:x64-windows
+          $bin = "$env:VCPKG_INSTALLATION_ROOT\installed\x64-windows\bin"
+          $dst = "build\windows\x64\runner\Release"
+          Get-ChildItem $bin -Filter *.dll |
+            Where-Object { $_.Name -match 'webp|sharpyuv' } |
+            ForEach-Object { Copy-Item $_.FullName $dst -Force }
+          Get-ChildItem $dst -Filter *.dll | Select-Object Name
       - uses: actions/upload-artifact@v4
         with:
           name: purrfect-windows
@@ -75,6 +87,18 @@ jobs:
       - run: flutter create .
       - run: flutter pub get
       - run: flutter build linux --release
+      # Bundle libwebp .so's into the app's lib/ so WebP works out of the box.
+      - name: Bundle libwebp
+        continue-on-error: true
+        run: |
+          sudo apt-get install -y libwebp7 libwebpmux3 libsharpyuv0 || true
+          dst=build/linux/x64/release/bundle/lib
+          mkdir -p "$dst"
+          for so in libsharpyuv.so.0 libwebp.so.7 libwebpmux.so.3; do
+            src=$(ldconfig -p | grep -m1 "$so" | awk '{print $NF}')
+            if [ -n "$src" ]; then cp -v "$src" "$dst/"; else echo "missing $so"; fi
+          done
+          ls -la "$dst"
       - uses: actions/upload-artifact@v4
         with:
           name: purrfect-linux
@@ -89,6 +113,29 @@ jobs:
       - run: flutter create .
       - run: flutter pub get
       - run: flutter build macos --release
+      # Bundle libwebp dylibs into the .app and rewrite their install names to
+      # @loader_path so they resolve each other without Homebrew on the user's
+      # Mac (best-effort).
+      - name: Bundle libwebp
+        continue-on-error: true
+        run: |
+          brew install webp || true
+          app=$(ls -d build/macos/Build/Products/Release/*.app | head -1)
+          fw="$app/Contents/Frameworks"
+          mkdir -p "$fw"
+          libdir=$(brew --prefix webp 2>/dev/null)/lib
+          for f in libsharpyuv libwebp libwebpmux; do
+            real=$(ls "$libdir/$f."*.dylib 2>/dev/null | head -1)
+            [ -n "$real" ] && cp -v "$real" "$fw/$f.dylib" || echo "missing $f"
+          done
+          for f in "$fw"/*.dylib; do
+            [ -f "$f" ] || continue
+            install_name_tool -id "@loader_path/$(basename "$f")" "$f" || true
+            otool -L "$f" | awk '/webp|sharpyuv/{print $1}' | while read dep; do
+              install_name_tool -change "$dep" "@loader_path/$(basename "$dep" | sed -E 's/\.[0-9]+\.dylib/.dylib/')" "$f" || true
+            done
+          done
+          ls -la "$fw" || true
       - uses: actions/upload-artifact@v4
         with:
           name: purrfect-macos

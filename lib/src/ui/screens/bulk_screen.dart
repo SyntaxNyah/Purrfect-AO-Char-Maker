@@ -13,9 +13,9 @@ class BulkScreen extends StatefulWidget {
 }
 
 class _BulkScreenState extends State<BulkScreen> {
-  OutputFormat _format = OutputFormat.webp; // WebP by default
-  bool _lossless = false;
-  int _quality = 90;
+  OutputFormat _format = OutputFormat.webp; // WebP is the default/best format
+  bool _lossless = true; // lossless by default = no quality loss
+  int _quality = 95;
   bool _deleteOriginal = false;
 
   @override

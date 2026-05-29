@@ -26,7 +26,23 @@ class PurrfectApp extends StatelessWidget {
   }
 }
 
+const List<({IconData icon, String label})> _dests =
+    <({IconData icon, String label})>[
+  (icon: Icons.home_rounded, label: 'Home'),
+  (icon: Icons.grid_view_rounded, label: 'Emotes'),
+  (icon: Icons.palette_rounded, label: 'Colour Lab'),
+  (icon: Icons.movie_filter_rounded, label: 'Animate'),
+  (icon: Icons.crop_square_rounded, label: 'Buttons'),
+  (icon: Icons.auto_fix_high_rounded, label: 'Mixer'),
+  (icon: Icons.dynamic_feed_rounded, label: 'Bulk'),
+  (icon: Icons.extension_rounded, label: 'Plugins'),
+];
+
 /// Persistent navigation rail + status bar around the active screen.
+///
+/// Performance: only the *active* screen is built (not all eight via an
+/// IndexedStack), and the shell/rail do NOT subscribe to [AppState], so a
+/// slider drag no longer rebuilds the whole UI — only the screen that needs it.
 class HomeShell extends StatefulWidget {
   const HomeShell({super.key});
 
@@ -37,62 +53,99 @@ class HomeShell extends StatefulWidget {
 class _HomeShellState extends State<HomeShell> {
   int _index = 0;
 
-  static const List<({IconData icon, String label})> _dests =
-      <({IconData icon, String label})>[
-    (icon: Icons.home_rounded, label: 'Home'),
-    (icon: Icons.grid_view_rounded, label: 'Emotes'),
-    (icon: Icons.palette_rounded, label: 'Colour Lab'),
-    (icon: Icons.movie_filter_rounded, label: 'Animate'),
-    (icon: Icons.crop_square_rounded, label: 'Buttons'),
-    (icon: Icons.auto_fix_high_rounded, label: 'Mixer'),
-    (icon: Icons.dynamic_feed_rounded, label: 'Bulk'),
-    (icon: Icons.extension_rounded, label: 'Plugins'),
-  ];
+  Widget _screenFor(int i) {
+    switch (i) {
+      case 1:
+        return const EditorScreen();
+      case 2:
+        return const ColorLabScreen();
+      case 3:
+        return const AnimationStudioScreen();
+      case 4:
+        return const ButtonStudioScreen();
+      case 5:
+        return const MixerScreen();
+      case 6:
+        return const BulkScreen();
+      case 7:
+        return const PluginsScreen();
+      case 0:
+      default:
+        return const HomeScreen();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final AppState app = context.watch<AppState>();
-    final bool needsProject = _index != 0 && _index != 7 && !app.hasProject;
-
-    final List<Widget> screens = <Widget>[
-      const HomeScreen(),
-      const EditorScreen(),
-      const ColorLabScreen(),
-      const AnimationStudioScreen(),
-      const ButtonStudioScreen(),
-      const MixerScreen(),
-      const BulkScreen(),
-      const PluginsScreen(),
-    ];
-
     return Scaffold(
       body: Row(
         children: <Widget>[
-          NavigationRail(
-            selectedIndex: _index,
-            onDestinationSelected: (int i) => setState(() => _index = i),
-            labelType: NavigationRailLabelType.all,
-            leading: const Padding(
-              padding: EdgeInsets.symmetric(vertical: 12),
-              child: Text('🐾', style: TextStyle(fontSize: 26)),
-            ),
-            destinations: <NavigationRailDestination>[
-              for (final ({IconData icon, String label}) d in _dests)
-                NavigationRailDestination(
-                  icon: Icon(d.icon),
-                  label: Text(d.label),
-                ),
-            ],
+          _NavRail(
+            index: _index,
+            onSelect: (int i) => setState(() => _index = i),
           ),
           const VerticalDivider(width: 1),
           Expanded(
-            child: needsProject
-                ? _NoProject(onGoHome: () => setState(() => _index = 0))
-                : IndexedStack(index: _index, children: screens),
+            // Only rebuilds when project presence flips (rare), not on every
+            // AppState change.
+            child: Selector<AppState, bool>(
+              selector: (_, AppState a) => a.hasProject,
+              builder: (BuildContext context, bool hasProject, _) {
+                final bool needsProject =
+                    _index != 0 && _index != 7 && !hasProject;
+                if (needsProject) {
+                  return _NoProject(onGoHome: () => setState(() => _index = 0));
+                }
+                return KeyedSubtree(
+                  key: ValueKey<int>(_index),
+                  child: _screenFor(_index),
+                );
+              },
+            ),
           ),
         ],
       ),
-      bottomNavigationBar: _StatusBar(app: app),
+      bottomNavigationBar: const _StatusBar(),
+    );
+  }
+}
+
+/// Scrollable navigation rail (NavigationRail itself doesn't scroll, so a short
+/// window would overflow with this many destinations).
+class _NavRail extends StatelessWidget {
+  const _NavRail({required this.index, required this.onSelect});
+
+  final int index;
+  final ValueChanged<int> onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        return SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minHeight: constraints.maxHeight),
+            child: IntrinsicHeight(
+              child: NavigationRail(
+                selectedIndex: index,
+                onDestinationSelected: onSelect,
+                labelType: NavigationRailLabelType.all,
+                leading: const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 10),
+                  child: Text('🐾', style: TextStyle(fontSize: 24)),
+                ),
+                destinations: <NavigationRailDestination>[
+                  for (final ({IconData icon, String label}) d in _dests)
+                    NavigationRailDestination(
+                      icon: Icon(d.icon),
+                      label: Text(d.label),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }
@@ -123,8 +176,7 @@ class _NoProject extends StatelessWidget {
 }
 
 class _StatusBar extends StatelessWidget {
-  const _StatusBar({required this.app});
-  final AppState app;
+  const _StatusBar();
 
   @override
   Widget build(BuildContext context) {
@@ -132,31 +184,33 @@ class _StatusBar extends StatelessWidget {
       color: PurrfectTheme.surface,
       child: SizedBox(
         height: 30,
-        child: Row(
-          children: <Widget>[
-            const SizedBox(width: 12),
-            if (app.busy)
-              const SizedBox(
-                width: 14,
-                height: 14,
-                child: CircularProgressIndicator(strokeWidth: 2),
+        child: Consumer<AppState>(
+          builder: (BuildContext context, AppState app, _) => Row(
+            children: <Widget>[
+              const SizedBox(width: 12),
+              if (app.busy)
+                const SizedBox(
+                  width: 14,
+                  height: 14,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  app.status,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 12),
+                ),
               ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                app.status,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 12),
-              ),
-            ),
-            if (app.character != null)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: Text('${app.character!.emotes.length} emotes',
-                    style: const TextStyle(fontSize: 12)),
-              ),
-          ],
+              if (app.character != null)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: Text('${app.character!.emotes.length} emotes',
+                      style: const TextStyle(fontSize: 12)),
+                ),
+            ],
+          ),
         ),
       ),
     );

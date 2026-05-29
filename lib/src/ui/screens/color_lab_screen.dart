@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -9,6 +10,15 @@ import '../../presets/presets.dart';
 import '../app_state.dart';
 import '../widgets/zoom_canvas.dart';
 
+/// Real-time recolour. Performance notes:
+///  * sliders only do a local [setState] + a debounced preview compute — they
+///    never trigger a global rebuild;
+///  * the (large) preset/gradient chip lists are built once and reused, so a
+///    slider drag doesn't rebuild ~100 chips;
+///  * the preview image lives in a [ValueNotifier] driven off a debounce timer,
+///    decoupled from widget rebuilds.
+///
+/// Presets and gradients **blend** (stack) on top of each other and the sliders.
 class ColorLabScreen extends StatefulWidget {
   const ColorLabScreen({super.key});
 
@@ -21,49 +31,90 @@ class _ColorLabScreenState extends State<ColorLabScreen> {
   double sat = 1;
   double bri = 1;
   double con = 1;
-  final List<ColorOp> _extra = <ColorOp>[];
-  String _presetLabel = 'Custom';
+
+  /// Stacked presets/gradients (blended in order, after the sliders).
+  final List<OpPipeline> _blend = <OpPipeline>[];
+
+  final ValueNotifier<Uint8List?> _preview = ValueNotifier<Uint8List?>(null);
+  Timer? _debounce;
+  Widget? _chipsCache;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _compute();
+    });
+  }
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    _preview.dispose();
+    super.dispose();
+  }
 
   List<ColorOp> get _pipeline => <ColorOp>[
         if (hue.abs() > 0.5) ColorOp('hueShift', nums: <String, double>{'degrees': hue}),
         if ((sat - 1).abs() > 0.01) ColorOp('saturation', nums: <String, double>{'amount': sat}),
         if ((bri - 1).abs() > 0.01) ColorOp('brightness', nums: <String, double>{'amount': bri}),
         if ((con - 1).abs() > 0.01) ColorOp('contrast', nums: <String, double>{'amount': con}),
-        ..._extra,
+        for (final OpPipeline p in _blend) ...p.ops,
       ];
 
-  void _sync(AppState app) => app.setLivePipeline(_pipeline);
-
-  void _applyPreset(OpPipeline preset, AppState app) {
-    setState(() {
-      hue = 0;
-      sat = 1;
-      bri = 1;
-      con = 1;
-      _extra
-        ..clear()
-        ..addAll(preset.ops);
-      _presetLabel = preset.name;
-    });
-    _sync(app);
+  void _schedule() {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 110), _compute);
   }
 
-  void _reset(AppState app) {
+  Future<void> _compute() async {
+    final AppState app = context.read<AppState>();
+    final String? rel = app.current == null ? null : app.spriteRelFor(app.current!);
+    if (rel == null) {
+      _preview.value = null;
+      return;
+    }
+    final Uint8List? bytes = await app.previewWithPipeline(rel, _pipeline);
+    if (mounted) _preview.value = bytes;
+  }
+
+  void _addPreset(OpPipeline p) {
+    setState(() => _blend.add(p));
+    _schedule();
+  }
+
+  void _removeBlend(int i) {
+    setState(() => _blend.removeAt(i));
+    _schedule();
+  }
+
+  void _reset() {
     setState(() {
       hue = 0;
       sat = 1;
       bri = 1;
       con = 1;
-      _extra.clear();
-      _presetLabel = 'Custom';
+      _blend.clear();
     });
-    _sync(app);
+    _schedule();
+  }
+
+  Future<void> _apply({required bool allSprites}) async {
+    final AppState app = context.read<AppState>();
+    if (_pipeline.isEmpty) return;
+    app.setLivePipeline(_pipeline);
+    await app.applyPipeline(allSprites: allSprites);
+    // The look is now baked into the sprite(s); clear the live stack so the
+    // preview shows the result instead of re-applying on top.
+    _reset();
   }
 
   @override
   Widget build(BuildContext context) {
-    final AppState app = context.watch<AppState>();
-    final String? rel = app.current == null ? null : app.spriteRelFor(app.current!);
+    final AppState app = context.read<AppState>();
+    final bool hasSprite =
+        app.current != null && app.spriteRelFor(app.current!) != null;
+    _chipsCache ??= _buildChips();
 
     return Row(
       children: <Widget>[
@@ -71,41 +122,39 @@ class _ColorLabScreenState extends State<ColorLabScreen> {
           flex: 3,
           child: Padding(
             padding: const EdgeInsets.all(12),
-            child: rel == null
-                ? const Center(child: Text('Select an emote (Emotes tab) to recolour it.'))
-                : FutureBuilder<Uint8List?>(
-                    future: app.previewWithPipeline(rel, _pipeline),
-                    builder: (BuildContext c, AsyncSnapshot<Uint8List?> s) =>
-                        ZoomCanvas(bytes: s.data),
-                  ),
+            child: hasSprite
+                ? ValueListenableBuilder<Uint8List?>(
+                    valueListenable: _preview,
+                    builder: (_, Uint8List? b, __) => ZoomCanvas(bytes: b),
+                  )
+                : const Center(
+                    child: Text('Select an emote (Emotes tab) to recolour it.')),
           ),
         ),
         const VerticalDivider(width: 1),
-        SizedBox(width: 360, child: _controls(app)),
+        SizedBox(width: 360, child: _controls()),
       ],
     );
   }
 
-  Widget _controls(AppState app) {
-    final List<OpPipeline> presets = ExtensionRegistry.instance.colorPresets;
+  Widget _controls() {
     return ListView(
       padding: const EdgeInsets.all(12),
       children: <Widget>[
         Row(children: <Widget>[
-          Text('Adjust ($_presetLabel)',
-              style: Theme.of(context).textTheme.titleMedium),
+          Text('Adjust', style: Theme.of(context).textTheme.titleMedium),
           const Spacer(),
-          TextButton(onPressed: () => _reset(app), child: const Text('Reset')),
+          TextButton(onPressed: _reset, child: const Text('Reset')),
         ]),
-        _slider('Hue', hue, -180, 180, (double v) => setState(() => hue = v), app),
-        _slider('Saturation', sat, 0, 3, (double v) => setState(() => sat = v), app),
-        _slider('Brightness', bri, 0, 2, (double v) => setState(() => bri = v), app),
-        _slider('Contrast', con, 0, 2, (double v) => setState(() => con = v), app),
+        _slider('Hue', hue, -180, 180, (double v) => hue = v),
+        _slider('Saturation', sat, 0, 3, (double v) => sat = v),
+        _slider('Brightness', bri, 0, 2, (double v) => bri = v),
+        _slider('Contrast', con, 0, 2, (double v) => con = v),
         const SizedBox(height: 8),
         Row(children: <Widget>[
           Expanded(
             child: FilledButton.icon(
-              onPressed: () => app.applyPipeline(allSprites: false),
+              onPressed: () => _apply(allSprites: false),
               icon: const Icon(Icons.brush_rounded),
               label: const Text('Apply'),
             ),
@@ -113,40 +162,69 @@ class _ColorLabScreenState extends State<ColorLabScreen> {
           const SizedBox(width: 8),
           Expanded(
             child: FilledButton.tonalIcon(
-              onPressed: () => app.applyPipeline(allSprites: true),
+              onPressed: () => _apply(allSprites: true),
               icon: const Icon(Icons.select_all_rounded),
               label: const Text('All sprites'),
             ),
           ),
         ]),
+        if (_blend.isNotEmpty) ...<Widget>[
+          const SizedBox(height: 10),
+          Text('Blended (${_blend.length})',
+              style: Theme.of(context).textTheme.labelLarge),
+          const SizedBox(height: 4),
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: <Widget>[
+              for (int i = 0; i < _blend.length; i++)
+                InputChip(
+                  label: Text(_blend[i].name),
+                  onDeleted: () => _removeBlend(i),
+                ),
+            ],
+          ),
+        ],
         const Divider(height: 24),
+        const Text('Tap presets to blend them together'),
+        const SizedBox(height: 8),
+        _chipsCache ?? const SizedBox.shrink(),
+      ],
+    );
+  }
+
+  /// Built once (presets don't change during a screen visit), so slider drags
+  /// don't rebuild ~100 chips.
+  Widget _buildChips() {
+    final List<OpPipeline> presets = ExtensionRegistry.instance.colorPresets;
+    final List<NamedGradient> grads = ExtensionRegistry.instance.gradients;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
         Text('Presets (${presets.length})',
             style: Theme.of(context).textTheme.titleMedium),
-        const SizedBox(height: 8),
+        const SizedBox(height: 6),
         Wrap(
           spacing: 6,
           runSpacing: 6,
           children: <Widget>[
             for (final OpPipeline preset in presets)
-              ActionChip(
-                label: Text(preset.name),
-                onPressed: () => _applyPreset(preset, app),
-              ),
+              ActionChip(label: Text(preset.name), onPressed: () => _addPreset(preset)),
           ],
         ),
-        const Divider(height: 24),
-        Text('Gradient maps', style: Theme.of(context).textTheme.titleMedium),
-        const SizedBox(height: 8),
+        const SizedBox(height: 16),
+        Text('Gradient maps (${grads.length})',
+            style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 6),
         Wrap(
           spacing: 6,
           runSpacing: 6,
           children: <Widget>[
-            for (final NamedGradient g in ExtensionRegistry.instance.gradients)
+            for (final NamedGradient g in grads)
               ActionChip(
                 label: Text(g.name),
-                onPressed: () => _applyPreset(
+                onPressed: () => _addPreset(
                   OpPipeline(g.name, <ColorOp>[PresetLibrary.gradientMapOp(g)]),
-                  app,
                 ),
               ),
           ],
@@ -156,7 +234,7 @@ class _ColorLabScreenState extends State<ColorLabScreen> {
   }
 
   Widget _slider(String label, double value, double min, double max,
-      ValueChanged<double> onChanged, AppState app) {
+      void Function(double) assign) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
@@ -166,8 +244,8 @@ class _ColorLabScreenState extends State<ColorLabScreen> {
           min: min,
           max: max,
           onChanged: (double v) {
-            onChanged(v);
-            _sync(app);
+            setState(() => assign(v));
+            _schedule();
           },
         ),
       ],

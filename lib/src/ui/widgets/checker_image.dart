@@ -26,7 +26,9 @@ class CheckerImage extends StatelessWidget {
               bytes!,
               fit: fit,
               gaplessPlayback: true,
-              filterQuality: FilterQuality.none,
+              // Smooth scaling so previews don't look pixelated (this is just
+              // how the preview is displayed; the sprite data is untouched).
+              filterQuality: FilterQuality.medium,
               errorBuilder: (_, __, ___) =>
                   const Center(child: Icon(Icons.broken_image_outlined)),
             ),
