@@ -1,0 +1,54 @@
+name: purrfect
+description: >-
+  The Purrfect AO Char Maker — the most customizable, most automated
+  Attorney Online / webAO character & button maker. Desktop, Android and iOS
+  from a single codebase.
+publish_to: "none"
+version: 0.1.0+1
+
+environment:
+  sdk: ">=3.4.0 <4.0.0"
+  flutter: ">=3.22.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # Pure-Dart image decode/encode + pixel manipulation (png, apng, gif, webp-in,
+  # bmp, tga, ico, jpg, tiff, ...). The backbone of the recolour/bulk engine.
+  image: ^4.3.0
+
+  # Cross-platform file + folder picking (Windows/Linux/macOS/Android/iOS).
+  file_picker: ^8.1.2
+
+  # App-sandbox directories on mobile (frame cache, recent projects, presets).
+  path_provider: ^2.1.4
+
+  # Path joining/normalisation that behaves the same on every platform.
+  path: ^1.9.0
+
+  # Bundle import/export (.zip character packages).
+  archive: ^3.6.1
+
+  # Small, dependency-light state management used by the UI layer.
+  provider: ^6.1.2
+
+  # Misc collection helpers (natural sort, grouping).
+  collection: ^1.18.0
+
+  # Native interop for the optional libwebp encoder (lossy + lossless WebP on
+  # desktop/mobile). dart:ffi is built in; this provides malloc/calloc.
+  ffi: ^2.1.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/presets/
+  # Note: a GPU fragment-shader fast-path for real-time recolour is on the
+  # roadmap (see ROADMAP.md). The current build uses an efficient CPU preview
+  # (downscaled, in-isolate-ready) which works on every platform including web.

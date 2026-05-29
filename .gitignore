@@ -1,0 +1,33 @@
+# Flutter / Dart
+.dart_tool/
+.packages
+.pub-cache/
+.pub/
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+pubspec.lock
+
+# IDE
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Generated platform folders are recreated by `flutter create .`
+# (kept out of source control; see README for bootstrap instructions)
+/android/
+/ios/
+/linux/
+/macos/
+/windows/
+/web/
+
+# Local scratch
+/scratch/
+*.log

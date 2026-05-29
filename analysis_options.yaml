@@ -1,0 +1,9 @@
+include: package:flutter_lints/flutter.yaml
+
+# Kept intentionally light so the generated platform code and the data-driven
+# JSON (de)serialisation (which uses `as Map?` casts) don't produce noise.
+linter:
+  rules:
+    avoid_print: true
+    prefer_const_constructors: false
+    require_trailing_commas: false

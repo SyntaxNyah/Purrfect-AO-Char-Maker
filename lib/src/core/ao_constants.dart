@@ -1,0 +1,272 @@
+/// Single source of truth for every Attorney Online / webAO constant the app
+/// relies on. No magic numbers or magic strings should appear anywhere else in
+/// the codebase — if the AO format defines it, it lives here.
+///
+/// References (all verified against the user's local repos):
+///  * Official spec: docs/Content Creation/characters/Overview.md
+///  * Reference client: AO2-Client/src/animationlayer.cpp, text_file_functions.cpp
+///  * webAO compatibility notes (no `(a)/`,`(b)/` subfolder mode on web)
+library;
+
+/// Image file extensions AO treats as *animated*, in the exact priority order
+/// the engine resolves them (highest priority first).
+const List<String> kAnimatedExtensions = <String>['webp', 'apng', 'gif'];
+
+/// Image file extension AO treats as *static*. Always checked last.
+const String kStaticExtension = 'png';
+
+/// Full resolution order: animated formats first, then the static PNG fallback.
+/// Mirrors `AOApplication::get_image_suffix`.
+const List<String> kSpriteExtensionPriority = <String>[
+  ...kAnimatedExtensions,
+  kStaticExtension,
+];
+
+/// Every image extension the *maker* will happily import (a superset of what AO
+/// itself renders — we can convert anything down to an AO-compatible format).
+const List<String> kImportableImageExtensions = <String>[
+  'webp', 'apng', 'gif', 'png', 'jpg', 'jpeg', 'bmp', 'tga', 'tiff', 'tif',
+  'ico', 'pnm', 'ppm', 'pgm', 'pbm', 'psd', 'exr', 'pvr', 'pvrtc',
+];
+
+/// Sprite-state prefixes used on the filesystem.
+class SpritePrefix {
+  const SpritePrefix._();
+
+  /// Idle / blinking animation, played while not speaking. `(a)foo`.
+  static const String idle = '(a)';
+
+  /// Talking animation, played while speaking. `(b)foo`.
+  static const String talk = '(b)';
+
+  /// Post / transition animation, played speaking -> idle. `(c)foo`.
+  static const String post = '(c)';
+
+  /// Subfolder variants (e.g. `(a)/foo`). Not supported by webAO.
+  static const String idleFolder = '(a)/';
+  static const String talkFolder = '(b)/';
+  static const String postFolder = '(c)/';
+
+  /// All bare prefixes, longest-first so trimming is unambiguous.
+  static const List<String> all = <String>[idle, talk, post];
+}
+
+/// The `<modifier>` field of an emote line.
+enum EmoteModifier {
+  /// 0 — never plays the preanimation or its sound. Pure idle/talk.
+  idle(0, 'Idle (no preanim)'),
+
+  /// 1 — plays the preanimation and its associated sound.
+  preanim(1, 'Play preanim + sound'),
+
+  /// 5 — zoom: desk/stand hidden, background replaced with speed lines.
+  /// Never plays a preanimation.
+  zoom(5, 'Zoom (speed lines, no preanim)'),
+
+  /// 6 — zoom that *always* plays the preanimation.
+  zoomPreanim(6, 'Zoom + preanim');
+
+  const EmoteModifier(this.value, this.label);
+
+  /// The integer written to / read from the ini.
+  final int value;
+
+  /// Human-friendly label for the UI.
+  final String label;
+
+  static EmoteModifier fromValue(int value) {
+    for (final EmoteModifier m in EmoteModifier.values) {
+      if (m.value == value) return m;
+    }
+    // Unknown modifiers degrade gracefully to "idle" rather than throwing,
+    // because real-world inis contain all sorts of junk.
+    return EmoteModifier.idle;
+  }
+}
+
+/// The optional `<deskmod>` field of an emote line.
+enum DeskModifier {
+  /// 0 — forcibly hide the desk/stand/overlay.
+  hide(0, 'Always hide desk'),
+
+  /// 1 — forcibly show the desk/stand/overlay (the usual default).
+  show(1, 'Always show desk'),
+
+  /// 2 — hide during preanim, show once it finishes.
+  hideDuringPre(2, 'Hide during preanim'),
+
+  /// 3 — show only during preanim, hide afterwards.
+  showDuringPre(3, 'Show only during preanim'),
+
+  /// 4 — like 2 but the preanim ignores X/Y offsets and hides paired chars.
+  hideDuringPreCentered(4, 'Hide during preanim (centered)'),
+
+  /// 5 — like 3 but the preanim ignores X/Y offsets and hides paired chars.
+  showDuringPreCentered(5, 'Show only during preanim (centered)');
+
+  const DeskModifier(this.value, this.label);
+
+  final int value;
+  final String label;
+
+  /// AO's effective default when the deskmod field is omitted entirely.
+  static const DeskModifier defaultValue = DeskModifier.show;
+
+  static DeskModifier fromValue(int value) {
+    for (final DeskModifier d in DeskModifier.values) {
+      if (d.value == value) return d;
+    }
+    return DeskModifier.defaultValue;
+  }
+}
+
+/// Valid courtroom positions for `[Options] side`.
+enum CourtSide {
+  defense('def', 'Defense'),
+  prosecution('pro', 'Prosecution'),
+  helperDefense('hld', 'Helper (defense)'),
+  helperProsecution('hlp', 'Helper (prosecution)'),
+  judge('jud', 'Judge'),
+  witness('wit', 'Witness'),
+  juror('jur', 'Juror'),
+  seance('sea', 'Seance');
+
+  const CourtSide(this.id, this.label);
+
+  final String id;
+  final String label;
+
+  static const CourtSide defaultValue = CourtSide.witness;
+
+  static CourtSide? fromId(String id) {
+    final String norm = id.trim().toLowerCase();
+    for (final CourtSide s in CourtSide.values) {
+      if (s.id == norm) return s;
+    }
+    return null;
+  }
+}
+
+/// Scaling/resize modes for `[Options] scaling` and per-emote `scaling`.
+enum ScalingMode {
+  smooth('smooth', 'Smooth (bilinear)'),
+  pixel('pixel', 'Pixel (nearest)');
+
+  const ScalingMode(this.id, this.label);
+
+  final String id;
+  final String label;
+
+  static ScalingMode? fromId(String id) {
+    final String norm = id.trim().toLowerCase();
+    for (final ScalingMode m in ScalingMode.values) {
+      if (m.id == norm) return m;
+    }
+    return null;
+  }
+}
+
+/// Per-frame effect categories that live in `[<emote>_Frame*]` sections.
+enum FrameEffectKind {
+  sfx('FrameSFX'),
+  realization('FrameRealization'),
+  screenshake('FrameScreenshake');
+
+  const FrameEffectKind(this.suffix);
+
+  /// The ini section suffix, e.g. `_FrameSFX` is `'_' + suffix`.
+  final String suffix;
+
+  String sectionSuffix(String emoteSprite) => '${emoteSprite}_$suffix';
+}
+
+/// Canonical `char.ini` section names (lower-cased for case-insensitive lookup).
+class IniSection {
+  const IniSection._();
+
+  static const String options = 'options';
+  static const String shouts = 'shouts';
+  static const String time = 'time';
+  static const String emotions = 'emotions';
+  static const String soundN = 'soundn';
+  static const String soundT = 'soundt';
+  static const String soundL = 'soundl';
+  static const String soundB = 'soundb';
+  static const String videos = 'videos';
+  static const String optionsN = 'optionsn';
+
+  /// Numbered alternate option blocks: `[Options2]`..`[Options5]`.
+  static const int maxAlternateOptionBlocks = 5;
+}
+
+/// Timing constants.
+class AoTiming {
+  const AoTiming._();
+
+  /// One `[SoundT]` tick equals this many milliseconds.
+  static const int soundTickMs = 60;
+
+  /// Animated-image frame delays in AO are expressed in centiseconds
+  /// (hundredths of a second), matching GIF/APNG/WebP frame metadata.
+  static const double frameDelayUnitSeconds = 0.01;
+
+  /// A sensible default frame delay (≈100 ms) when none is known.
+  static const int defaultFrameDelayCentis = 10;
+}
+
+/// Filesystem layout constants for a character folder.
+class CharFolder {
+  const CharFolder._();
+
+  static const String iniName = 'char.ini';
+  static const String charIcon = 'char_icon.png';
+  static const String creditsFile = 'credits.txt';
+  static const String emotionsDir = 'emotions';
+  static const String backupEmotionsDir = '_old_emotions';
+  static const String preanimDir = 'anim';
+  static const String customObjectionsDir = 'custom_objections';
+
+  /// Button file name template; `{n}` is the 1-based emote number and
+  /// `{state}` is `off` or `on`.
+  static const String buttonTemplate = 'button{n}_{state}.png';
+
+  static String buttonName(int oneBasedIndex, {required bool on}) =>
+      buttonTemplate
+          .replaceFirst('{n}', '$oneBasedIndex')
+          .replaceFirst('{state}', on ? 'on' : 'off');
+
+  /// Recommended minimum button edge in pixels (1:1).
+  static const int recommendedButtonSize = 40;
+
+  /// Recommended minimum char_icon edge in pixels (1:1).
+  static const int recommendedIconSize = 60;
+
+  /// Folders that should never be treated as emote sprite sources when scanning.
+  static const List<String> ignoredScanDirs = <String>[
+    emotionsDir,
+    backupEmotionsDir,
+    customObjectionsDir,
+  ];
+
+  /// File base-names that are character chrome, not emotes.
+  static const List<String> ignoredScanBaseNames = <String>[
+    'char_icon',
+    'custom',
+    'holdit',
+    'holdit_bubble',
+    'objection',
+    'objection_bubble',
+    'takethat',
+    'takethat_bubble',
+    'defense_speedlines',
+    'prosecution_speedlines',
+    'placeholder',
+    'showname',
+  ];
+}
+
+/// Field separator inside an `[Emotions]` value line.
+const String kEmoteFieldSeparator = '#';
+
+/// Placeholder used for "no preanimation".
+const String kNoPreanim = '-';

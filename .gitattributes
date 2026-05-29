@@ -1,0 +1,13 @@
+# Normalise line endings. Scripts and YAML must stay LF for Linux/macOS CI.
+* text=auto eol=lf
+*.ps1 text eol=crlf
+*.sh text eol=lf
+*.bat text eol=crlf
+
+# Treat binaries as binary.
+*.png binary
+*.webp binary
+*.gif binary
+*.apng binary
+*.jpg binary
+*.zip binary

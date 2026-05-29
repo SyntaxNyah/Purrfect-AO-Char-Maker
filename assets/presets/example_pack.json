@@ -1,0 +1,54 @@
+{
+  "name": "Purrfect Starter Pack",
+  "author": "Purrfect",
+  "version": "1.0.0",
+  "description": "An example content pack. Copy this file, edit it, and import it from the Plugins screen — it works on desktop, mobile and the web with no code.",
+  "colorPresets": [
+    {
+      "name": "Cyberpunk",
+      "category": "Pack",
+      "description": "Teal shadows, magenta highlights.",
+      "ops": [
+        { "type": "duotone", "strs": { "shadow": "#FF0B132B", "highlight": "#FFFF2D95" } },
+        { "type": "saturation", "nums": { "amount": 1.2 } }
+      ]
+    },
+    {
+      "name": "Make it Mint",
+      "category": "Pack",
+      "ops": [
+        { "type": "colorize", "nums": { "hue": 160, "saturation": 0.6, "strength": 0.95 } }
+      ]
+    }
+  ],
+  "palettes": [
+    { "name": "Pack Pastels", "category": "Pack", "colors": ["#FFFFADAD", "#FFA0C4FF", "#FFBDB2FF", "#FFCAFFBF"] }
+  ],
+  "gradients": [
+    { "name": "Cotton Candy", "stops": ["#FFFF8FB1", "#FFB28DFF", "#FF8FE3FF"] }
+  ],
+  "animPresets": [
+    {
+      "name": "Sleepy Bob",
+      "category": "Pack",
+      "frames": 24,
+      "fps": 8,
+      "recipes": [
+        { "type": "bob", "p": { "intensity": 3, "cycles": 1 }, "ease": "easeInOutSine" }
+      ]
+    },
+    {
+      "name": "Hype",
+      "category": "Pack",
+      "frames": 14,
+      "fps": 18,
+      "recipes": [
+        { "type": "bounce", "p": { "intensity": 14 }, "ease": "easeOutQuad" },
+        { "type": "glow", "p": { "intensity": 0.6 }, "colors": { "color": "#FFFFE08A" } }
+      ]
+    }
+  ],
+  "emoteNameSets": [
+    { "name": "VTuber Basics", "names": ["Idle", "Talk", "Happy", "Angry", "Surprised", "Sad", "Wink", "Sing"] }
+  ]
+}

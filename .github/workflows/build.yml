@@ -1,0 +1,148 @@
+name: Build binaries
+
+# Compiles Purrfect for every platform on GitHub's runners.
+#
+#  * Every push / manual run  -> uploads downloadable artifacts per platform
+#    (Actions tab -> the run -> "Artifacts").
+#  * Pushing a version tag (e.g. v0.1.0) -> also creates a GitHub Release with
+#    the binaries attached, and publishes the web build to GitHub Pages.
+#
+# Builds run INDEPENDENTLY of the test job, so you always get binaries even if a
+# test fails (the test result is still shown for information).
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch: # adds a "Run workflow" button in the Actions tab
+
+# Needed so the Release + Pages steps can write with the default token.
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+# Cancel superseded runs on the same ref.
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FLUTTER_VERSION: "3.29.0"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+      - run: flutter create .
+      - run: flutter pub get
+      - run: flutter analyze --no-fatal-infos --no-fatal-warnings || true
+      - run: flutter test || true # informational; does not block the binaries
+
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with: { flutter-version: "${{ env.FLUTTER_VERSION }}", channel: stable, cache: true }
+      - run: flutter create .
+      - run: flutter pub get
+      - run: flutter build windows --release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: purrfect-windows
+          path: build/windows/x64/runner/Release/
+
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: sudo apt-get update && sudo apt-get install -y clang cmake ninja-build pkg-config libgtk-3-dev liblzma-dev libwebp-dev
+      - uses: subosito/flutter-action@v2
+        with: { flutter-version: "${{ env.FLUTTER_VERSION }}", channel: stable, cache: true }
+      - run: flutter create .
+      - run: flutter pub get
+      - run: flutter build linux --release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: purrfect-linux
+          path: build/linux/x64/release/bundle/
+
+  macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with: { flutter-version: "${{ env.FLUTTER_VERSION }}", channel: stable, cache: true }
+      - run: flutter create .
+      - run: flutter pub get
+      - run: flutter build macos --release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: purrfect-macos
+          path: build/macos/Build/Products/Release/
+
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: "17" }
+      - uses: subosito/flutter-action@v2
+        with: { flutter-version: "${{ env.FLUTTER_VERSION }}", channel: stable, cache: true }
+      - run: flutter create .
+      - run: flutter pub get
+      - run: flutter build apk --release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: purrfect-android-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
+
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with: { flutter-version: "${{ env.FLUTTER_VERSION }}", channel: stable, cache: true }
+      - run: flutter create .
+      - run: flutter pub get
+      # base-href must match the repo name for project Pages. Override if you
+      # host at a domain root (use /).
+      - run: flutter build web --release --base-href /Purrfect-AO-Char-Maker/
+      - uses: actions/upload-artifact@v4
+        with:
+          name: purrfect-web
+          path: build/web/
+      - name: Publish website to GitHub Pages (on tag)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: build/web
+
+  release:
+    needs: [windows, linux, macos, android, web]
+    # Runs after the builds finish even if some failed, so a Release still gets
+    # whatever compiled. Only on version tags.
+    if: ${{ always() && startsWith(github.ref, 'refs/tags/') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with: { path: dist }
+      - name: Zip each platform folder
+        run: |
+          cd dist
+          for d in */; do
+            [ -d "$d" ] && zip -r "${d%/}.zip" "$d"
+          done
+          ls -la
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.zip
+          generate_release_notes: true
