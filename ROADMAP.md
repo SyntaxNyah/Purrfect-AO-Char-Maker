@@ -91,7 +91,9 @@ Legend: ✅ done · 🟡 partial · ⬜ planned
 - ⬜ Drag-and-drop import
 - ⬜ Move heavy bakes (bulk/animation export) into isolates
 - 🟡 Button overlay/border + background compositor UI (done for auto buttons +
-  char_icon; the full mask/crop `ButtonMaker.renderComposite` UI is still planned)
+  char_icon, incl. **dozens of built-in border/background presets** — Umineko,
+  Danganronpa, kawaii, colours; the full mask/crop `ButtonMaker.renderComposite`
+  UI is still planned)
 - 🟡 Region picker overlay (drag a box) — done in the Mixer (snip/arrange canvas);
   still planned for region animation/outfit edits
 - ⬜ Theming / accessibility pass

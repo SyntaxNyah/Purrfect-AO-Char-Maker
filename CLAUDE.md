@@ -252,6 +252,17 @@ The central model.
   `.renderComposite({sourceFrame,crop,size,background,foreground,mask,
   selectedOverlay,on})`, `.autoTrimBounds(image)`.
 
+### imaging/overlay_presets.dart  ← built-in button/icon overlays
+- `enum OverlayKind { border, background }`.
+- `class OverlayPreset(name, category, kind, build)` — `build(int size)` returns a
+  fresh RGBA `img.Image` (procedural, no asset files; scales to any size).
+- `class OverlayPresets` — `borders`, `backgrounds`, `forKind(kind)`. Categories:
+  **Umineko, Danganronpa, Kawaii, Classic, Vibes, Colours** (~40 borders + ~40
+  backgrounds). Pure drawing primitives (`_ring`/`_corners`/`_radial`/`_linear`/
+  `_dots`/`_hearts`/`_sparkles`/`_hsv`…). Surfaced in the Button Studio overlay
+  picker; applied via `AppState.setOverlay` (baked to PNG at 256, then `_fit` by
+  `ButtonMaker.renderFramed`).
+
 ### imaging/bulk_processor.dart
 - `enum OutputFormat { keep, png, apng, gif, webp }`.
 - `class BulkResult(sourceRel,{ok,outRel,error})`.
@@ -392,10 +403,14 @@ The central model.
     to the model + commit on blur/submit; the preview is a cached `_SpritePreview`
     keyed on `rel`+`spriteRevision` (was: a 1024px re-encode on every keystroke).
   - `button_studio`: **Button & Icon Studio** — framing (Head/face default vs Full
-    body), size, face zoom, crop **Move X/Y** offsets, and **overlay import**
-    (KFO-style border on top + background) for **both** buttons and the char_icon;
-    icon "made from emote" picker + "Save char_icon.png". Debounced `ValueNotifier`
-    previews; settings live on `AppState` so export uses them.
+    body), size, face zoom, crop **Move X/Y** offsets, and **overlays** (a
+    KFO-style border on top + a background) for **both** buttons and the
+    char_icon. Each overlay slot offers **Import…** (your own PNG) *and*
+    **Presets** (a grouped grid picker over `OverlayPresets`, cached thumbnails in
+    `_overlayThumbCache`). Icon "made from emote" picker + "Save char_icon.png".
+    Debounced `ValueNotifier` previews; settings live on `AppState` so export uses
+    them. **Buttons render crisp**: `renderFramed` never upscales and area-averages
+    on downscale (PNG is lossless — sharpness is purely the resample).
   - `edit`: crop / auto-trim / background removal (drives `SpriteEdit`).
   - `mixer`: frankensprite, **three modes** (`SegmentedButton`): **Arrange**
     (drag a snip to move, corner handle / scroll to scale, round handle to rotate),

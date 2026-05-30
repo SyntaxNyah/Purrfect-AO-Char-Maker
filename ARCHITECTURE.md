@@ -34,6 +34,8 @@ lib/
                                 multi-snip, mouse, link-layers)
       button_maker.dart         buttons + char_icon: head/face vs full framing
                                 (silhouette head crop), zoom/offset, overlays
+      overlay_presets.dart      built-in button/icon borders + backgrounds
+                                (Umineko/Danganronpa/Kawaii/Colours, procedural)
       bulk_processor.dart       apply pipeline / convert across many files
       webp_codec.dart           WebP encode interface (lossy + lossless, animated)
       webp_codec_io.dart          native: libwebp + libwebpmux via dart:ffi

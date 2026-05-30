@@ -85,9 +85,13 @@ border/background**. **Save char_icon.png now** bakes it straight into your
 project.
 
 **Can I put a border/frame on my buttons (like KFO CharMaker)?**
-Yes — **Buttons** tab → **Overlays → Border (on top) → Import…** a PNG; it's
-composited over every generated button. There's a **Background** slot too, and
-the char_icon has its own overlays.
+Yes — **Buttons** tab → **Overlays → Border (on top)**. Tap **Presets** for
+dozens of built-in frames (Umineko, Danganronpa/Monokuma, kawaii sakura/hearts/
+sparkles, classic gold, and a full colour palette) or **Import…** your own PNG;
+it's composited over every generated button. There's a **Background** slot too
+(solid colours, gradients, dotted/heart/sparkle patterns, themed radials), and
+the char_icon has its own overlays. Presets are generated in-app and scale
+crisply to any size.
 
 **My buttons look blurry / low quality.**
 Buttons are **lossless PNG** — PNG can't lose quality to compression, so

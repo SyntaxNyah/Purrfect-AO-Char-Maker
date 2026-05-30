@@ -7,6 +7,8 @@ import 'package:provider/provider.dart';
 
 import '../../core/ao_constants.dart';
 import '../../core/emote.dart';
+import '../../imaging/codecs.dart';
+import '../../imaging/overlay_presets.dart';
 import '../app_state.dart';
 import '../widgets/checker_image.dart';
 
@@ -227,17 +229,20 @@ Widget _offsetSlider(String label, double value, ValueChanged<double> onChanged)
   );
 }
 
-/// Import / preview / clear one overlay slot (a border laid on top, or a
+/// Import / pick-preset / clear one overlay slot (a border laid on top, or a
 /// background behind the sprite). KFO-style frames go in the "Border (on top)"
-/// slot. Self-contained so a pick only rebuilds this row.
+/// slot. Self-contained so a pick only rebuilds this row. [kind] selects which
+/// built-in [OverlayPresets] are offered.
 class _OverlayControls extends StatefulWidget {
   const _OverlayControls({
     required this.label,
     required this.slot,
+    required this.kind,
     required this.onChanged,
   });
   final String label;
   final OverlaySlot slot;
+  final OverlayKind kind;
   final VoidCallback onChanged;
 
   @override
@@ -261,6 +266,14 @@ class _OverlayControlsState extends State<_OverlayControls> {
     widget.onChanged();
   }
 
+  void _applyPreset(OverlayPreset p) {
+    // Bake at a high-ish resolution; renderFramed/_fit scales it to the button.
+    final Uint8List bytes = Codecs.encodePng(p.build(256));
+    context.read<AppState>().setOverlay(widget.slot, bytes, ext: 'png');
+    setState(() {});
+    widget.onChanged();
+  }
+
   void _clear() {
     context.read<AppState>().setOverlay(widget.slot, null);
     setState(() {});
@@ -272,34 +285,149 @@ class _OverlayControlsState extends State<_OverlayControls> {
     final bool set = widget.slot.isSet;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          SizedBox(width: 110, child: Text(widget.label, style: const TextStyle(fontSize: 12))),
-          if (set) ...<Widget>[
-            Container(
-              width: 28,
-              height: 28,
-              margin: const EdgeInsets.only(right: 6),
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.white24),
-                borderRadius: BorderRadius.circular(4),
+          Text(widget.label, style: const TextStyle(fontSize: 12)),
+          Wrap(
+            spacing: 6,
+            runSpacing: 2,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: <Widget>[
+              if (set)
+                Container(
+                  width: 28,
+                  height: 28,
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.white24),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: widget.slot.bytes == null
+                      ? null
+                      : ClipRRect(
+                          borderRadius: BorderRadius.circular(4),
+                          child: CheckerImage(bytes: widget.slot.bytes),
+                        ),
+                ),
+              FilledButton.tonal(
+                onPressed: () =>
+                    _showOverlayPresetPicker(context, widget.kind, _applyPreset),
+                child: const Text('Presets'),
               ),
-              child: widget.slot.bytes == null
-                  ? null
-                  : Image.memory(widget.slot.bytes!, fit: BoxFit.contain),
-            ),
-          ],
-          TextButton(
-            onPressed: _pick,
-            child: Text(set ? 'Replace' : 'Import…'),
+              TextButton(onPressed: _pick, child: Text(set ? 'Import' : 'Import…')),
+              if (set)
+                IconButton(
+                  tooltip: 'Remove',
+                  visualDensity: VisualDensity.compact,
+                  icon: const Icon(Icons.close_rounded, size: 16),
+                  onPressed: _clear,
+                ),
+            ],
           ),
-          if (set)
-            IconButton(
-              tooltip: 'Remove',
-              visualDensity: VisualDensity.compact,
-              icon: const Icon(Icons.close_rounded, size: 16),
-              onPressed: _clear,
+        ],
+      ),
+    );
+  }
+}
+
+/// Cached 56px thumbnails for the preset picker (keyed by kind+name, since a
+/// border and a background can share a name like "Monokuma").
+final Map<String, Uint8List> _overlayThumbCache = <String, Uint8List>{};
+
+Uint8List _overlayThumb(OverlayPreset p) =>
+    _overlayThumbCache.putIfAbsent('${p.kind}:${p.name}',
+        () => Codecs.encodePng(p.build(56)));
+
+/// A grid dialog of built-in overlay presets, grouped by category.
+Future<void> _showOverlayPresetPicker(
+    BuildContext context, OverlayKind kind, ValueChanged<OverlayPreset> onPick) {
+  final List<OverlayPreset> presets = OverlayPresets.forKind(kind);
+  final List<String> cats = <String>[];
+  for (final OverlayPreset p in presets) {
+    if (!cats.contains(p.category)) cats.add(p.category);
+  }
+  return showDialog<void>(
+    context: context,
+    builder: (BuildContext ctx) => AlertDialog(
+      title: Text(kind == OverlayKind.border
+          ? 'Border presets'
+          : 'Background presets'),
+      content: SizedBox(
+        width: 480,
+        height: 460,
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              for (final String cat in cats) ...<Widget>[
+                Padding(
+                  padding: const EdgeInsets.only(top: 8, bottom: 4),
+                  child: Text(cat, style: Theme.of(ctx).textTheme.titleSmall),
+                ),
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: <Widget>[
+                    for (final OverlayPreset p
+                        in presets.where((OverlayPreset e) => e.category == cat))
+                      _PresetSwatch(
+                        preset: p,
+                        onTap: () {
+                          Navigator.of(ctx).pop();
+                          onPick(p);
+                        },
+                      ),
+                  ],
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+      actions: <Widget>[
+        TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel')),
+      ],
+    ),
+  );
+}
+
+class _PresetSwatch extends StatelessWidget {
+  const _PresetSwatch({required this.preset, required this.onTap});
+  final OverlayPreset preset;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(6),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              border: Border.all(color: Colors.white24),
+              borderRadius: BorderRadius.circular(6),
             ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: CheckerImage(bytes: _overlayThumb(preset)),
+            ),
+          ),
+          SizedBox(
+            width: 60,
+            child: Text(
+              preset.name,
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 10),
+            ),
+          ),
         ],
       ),
     );
@@ -386,11 +514,13 @@ class _BtnCardState extends State<_BtnCard> {
                       _OverlayControls(
                         label: 'Border (on top)',
                         slot: app.buttonFg,
+                        kind: OverlayKind.border,
                         onChanged: widget.onChanged,
                       ),
                       _OverlayControls(
                         label: 'Background',
                         slot: app.buttonBg,
+                        kind: OverlayKind.background,
                         onChanged: widget.onChanged,
                       ),
                     ],
@@ -493,11 +623,13 @@ class _IconCardState extends State<_IconCard> {
                       _OverlayControls(
                         label: 'Border (on top)',
                         slot: app.iconFg,
+                        kind: OverlayKind.border,
                         onChanged: widget.onChanged,
                       ),
                       _OverlayControls(
                         label: 'Background',
                         slot: app.iconBg,
+                        kind: OverlayKind.background,
                         onChanged: widget.onChanged,
                       ),
                       const SizedBox(height: 12),

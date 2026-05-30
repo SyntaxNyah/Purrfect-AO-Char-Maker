@@ -282,12 +282,19 @@ By default Pinsel frames the character's **head / face** — AO buttons show
   size is only as sharp as your source art (no blurry enlargement).
 
 ### Borders & backgrounds (KFO-style)
-Want a frame around your buttons like other makers? Under **Overlays**:
-- **Border (on top)** — import a PNG that's laid **over** every button/icon (a
-  frame, shine, corner badge…).
-- **Background** — import a PNG that sits **behind** the sprite.
+Want a frame around your buttons like other makers? Under **Overlays**, each slot
+has **Presets** *and* **Import…**:
+- **Border (on top)** — laid **over** every button/icon (a frame, corner badge…).
+- **Background** — sits **behind** the sprite.
 
-You can set different overlays for the buttons and the icon (or none).
+**Presets** opens a picker of built-in art, grouped by theme — **Umineko**
+(gilded frames, crimson/gold), **Danganronpa** (hot-pink, Monokuma split,
+despair), **Kawaii** (sakura/lavender/mint frames, hearts, sparkles, cotton
+candy, pastel rainbow), **Classic** (white/black/double-gold/corners), **Vibes**
+(rainbow, sunset, ocean, vaporwave), and a big **Colours** palette (solid frames
++ soft radial backgrounds). They're generated in-app, so they scale crisply to
+any button size. Or **Import…** your own PNG. Buttons and the char_icon each have
+their own overlays (or none).
 
 ### Char icon
 - Choose which emote it's **made from** (defaults to the first).
