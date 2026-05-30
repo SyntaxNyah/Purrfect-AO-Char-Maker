@@ -119,24 +119,9 @@ See **[docs/BUILD_AND_RUN.md](docs/BUILD_AND_RUN.md)** for per-platform details
 You don't need to compile anything yourself — GitHub Actions does it for every
 platform via [`.github/workflows/build.yml`](.github/workflows/build.yml).
 
-1. **Push this repo to GitHub.** That alone triggers a build.
-2. **Open the *Actions* tab → the latest "Build binaries" run.** Each platform's
+**Open the *Actions* tab → the latest "Build binaries" run.** Each platform's
    output is under **Artifacts** (`purrfect-windows`, `-linux`, `-macos`,
    `-android-apk`, `-web`). Download and unzip.
-   - No push event? Use **Actions → Build binaries → Run workflow**.
-3. **For a proper Release** (zipped binaries attached + the website published):
-   ```bash
-   git tag v0.1.0
-   git push origin v0.1.0
-   ```
-   The binaries appear under **Releases**, and the web app deploys to
-   `https://<you>.github.io/Purrfect-AO-Char-Maker/`.
-
-One-time repo settings (usually already correct):
-- **Settings → Actions → General → Workflow permissions → "Read and write"**
-  (the workflow also requests this), so Releases/Pages can be written.
-- For Pages: **Settings → Pages →** set the source to the `gh-pages` branch
-  (created by the workflow on a tag).
 
 > Builds run **independently of the tests**, so you still get binaries even if a
 > test fails. iOS isn't auto-built (it needs your signing certificate); build it
