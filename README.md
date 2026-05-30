@@ -128,12 +128,12 @@ See **[docs/BUILD_AND_RUN.md](docs/BUILD_AND_RUN.md)** for per-platform details
 
 ---
 
-## ⬇️ Prebuilt binaries (let GitHub build them)
+## ⬇️ Prebuilt binaries FOR DOWNLOADS. (let GitHub build them)
 
 You don't need to compile anything yourself — GitHub Actions does it for every
 platform via [`.github/workflows/build.yml`](.github/workflows/build.yml).
 
-**Open the *Actions* tab → the latest "Build binaries" run.** Each platform's
+**For the download links, Open the *Actions* tab → the latest "Build binaries" run.** Each platform's
    output is under **Artifacts** (`pinsel-windows`, `-linux`, `-macos`,
    `-android-apk`, `-web`). Download and unzip.
 
