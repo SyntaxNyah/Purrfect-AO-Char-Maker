@@ -20,6 +20,20 @@ void main() {
     expect(cats, containsAll(<String>['Umineko', 'Danganronpa', 'Kawaii', 'Colours']));
   });
 
+  test('every OverlayStyle builds via a spec (covers the builder)', () {
+    for (final OverlayStyle style in OverlayStyle.values) {
+      expect(stylesForKind(style.kind), contains(style),
+          reason: '$style should be listed for its kind');
+      final OverlaySpec spec = OverlaySpec(style: style);
+      for (final int size in <int>[16, 64]) {
+        final img.Image im = spec.build(size);
+        expect(im.width, size, reason: '$style width @ $size');
+        expect(im.height, size, reason: '$style height @ $size');
+        expect(im.numChannels, 4, reason: '$style channels');
+      }
+    }
+  });
+
   test('every preset builds a size×size RGBA image at any size', () {
     final List<OverlayPreset> all = <OverlayPreset>[
       ...OverlayPresets.borders,

@@ -252,16 +252,26 @@ The central model.
   `.renderComposite({sourceFrame,crop,size,background,foreground,mask,
   selectedOverlay,on})`, `.autoTrimBounds(image)`.
 
-### imaging/overlay_presets.dart  ← built-in button/icon overlays
+### imaging/overlay_presets.dart  ← editable button/icon overlays
 - `enum OverlayKind { border, background }`.
-- `class OverlayPreset(name, category, kind, build)` — `build(int size)` returns a
-  fresh RGBA `img.Image` (procedural, no asset files; scales to any size).
-- `class OverlayPresets` — `borders`, `backgrounds`, `forKind(kind)`. Categories:
-  **Umineko, Danganronpa, Kawaii, Classic, Vibes, Colours** (~40 borders + ~40
-  backgrounds). Pure drawing primitives (`_ring`/`_corners`/`_radial`/`_linear`/
-  `_dots`/`_hearts`/`_sparkles`/`_hsv`…). Surfaced in the Button Studio overlay
-  picker; applied via `AppState.setOverlay` (baked to PNG at 256, then `_fit` by
-  `ButtonMaker.renderFramed`).
+- `enum OverlayStyle { frame, doubleFrame, corners, cornerHearts, gradientFrame,
+  rainbowFrame, splitFrame, solid, linearGradient, radialGradient, diagonalSplit,
+  dots, hearts, sparkles, rainbow }` + `OverlayStyleInfo` extension (`.kind`,
+  `.label`, `.usesColor1/Color2/Pattern/Thickness/Radius/Inset/Cell`) and
+  `stylesForKind(kind)`.
+- `class OverlaySpec` — the editable model: `style`, `color1/2`, `patternColor`,
+  `thickness`, `radius`, `inset`, `cell`; `.build(size)`→RGBA `img.Image`, `.copy()`,
+  `.kind`. `_buildSpec` dispatches to the drawing primitives (`_ring`/`_corners`/
+  `_gradientRing`/`_rainbowRing`/`_splitFrame`/`_solid`/`_linear`/`_radial`/
+  `_diagSplit`/`_dots`/`_hearts`/`_sparkles`/`_hsv`…). No asset files; scales to
+  any size.
+- `class OverlayPreset(name, category, spec)` — `.build(size)`/`.kind` delegate to
+  the (editable) `spec`. `class OverlayPresets` — `borders`, `backgrounds`,
+  `forKind(kind)`, `defaultSpec(kind)`. Categories: **Umineko, Danganronpa, Limbus,
+  Kawaii, Classic, Vibes, Colours** (~40 borders + ~40 backgrounds). Surfaced in
+  the Button Studio: a **Presets** grid, an **Import…** path, and **Build…** (the
+  `overlay_builder.dart` editor). Applied via `AppState.setOverlay(..., spec:)`
+  (baked to PNG at 256, then `_fit` by `ButtonMaker.renderFramed`).
 
 ### imaging/bulk_processor.dart
 - `enum OutputFormat { keep, png, apng, gif, webp }`.
@@ -385,8 +395,10 @@ The central model.
     never re-bakes the preview.
 - `screens/` — home, **ini_builder** (the `[Options]`/char.ini editor), editor,
   color_lab, animation_studio, button_studio, edit, mixer, bulk, plugins.
-  `widgets/` — `CheckerImage`, `ZoomCanvas`. `credits.dart` — the About dialog +
-  Home credits card (maintainer/repo, in `kMaintainer`/`kRepoUrl`).
+  `widgets/` — `CheckerImage`, `ZoomCanvas`, `overlay_builder` (the
+  `showOverlayBuilder` dialog — style/colour-wheel/sliders for custom overlays).
+  `credits.dart` — the About dialog + Home credits card (maintainer/repo, in
+  `kMaintainer`/`kRepoUrl`).
   - `color_lab`: sliders + blendable presets/gradients + a **custom colour**
     section — inline hex field and a `flutter_colorpicker` hue-wheel dialog
     (`hexInputBar`, HEX/RGB/HSV labels); picks become `colorize`/`tint`/
@@ -405,9 +417,12 @@ The central model.
   - `button_studio`: **Button & Icon Studio** — framing (Head/face default vs Full
     body), size, face zoom, crop **Move X/Y** offsets, and **overlays** (a
     KFO-style border on top + a background) for **both** buttons and the
-    char_icon. Each overlay slot offers **Import…** (your own PNG) *and*
-    **Presets** (a grouped grid picker over `OverlayPresets`, cached thumbnails in
-    `_overlayThumbCache`). Icon "made from emote" picker + "Save char_icon.png".
+    char_icon. Each overlay slot offers **Presets** (a grouped grid picker over
+    `OverlayPresets`, cached thumbnails in `_overlayThumbCache`), **Build…** (the
+    `overlay_builder.dart` editor — style + colour-wheel + thickness/radius/inset,
+    live preview, "start from" any preset), and **Import…** (your own PNG). The
+    applied `OverlaySpec` is remembered on the slot so Build… re-opens it. Icon
+    "made from emote" picker + "Save char_icon.png".
     Debounced `ValueNotifier` previews; settings live on `AppState` so export uses
     them. **Buttons render crisp**: `renderFramed` never upscales and area-averages
     on downscale (PNG is lossless — sharpness is purely the resample).

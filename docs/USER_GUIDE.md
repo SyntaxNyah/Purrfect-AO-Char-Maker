@@ -283,18 +283,29 @@ By default Pinsel frames the character's **head / face** — AO buttons show
 
 ### Borders & backgrounds (KFO-style)
 Want a frame around your buttons like other makers? Under **Overlays**, each slot
-has **Presets** *and* **Import…**:
+has three buttons — **Presets**, **Build…**, and **Import…**:
 - **Border (on top)** — laid **over** every button/icon (a frame, corner badge…).
 - **Background** — sits **behind** the sprite.
 
 **Presets** opens a picker of built-in art, grouped by theme — **Umineko**
 (gilded frames, crimson/gold), **Danganronpa** (hot-pink, Monokuma split,
-despair), **Kawaii** (sakura/lavender/mint frames, hearts, sparkles, cotton
-candy, pastel rainbow), **Classic** (white/black/double-gold/corners), **Vibes**
-(rainbow, sunset, ocean, vaporwave), and a big **Colours** palette (solid frames
-+ soft radial backgrounds). They're generated in-app, so they scale crisply to
-any button size. Or **Import…** your own PNG. Buttons and the char_icon each have
-their own overlays (or none).
+despair), **Limbus** (thin crimson identity frame), **Kawaii** (sakura/lavender/
+mint frames, hearts, sparkles, cotton candy, pastel rainbow), **Classic**
+(white/black/double-gold/corners), **Vibes** (rainbow, sunset, ocean, vaporwave),
+and a big **Colours** palette (solid frames + soft radial backgrounds). They're generated in-app, so they scale crisply to
+any button size.
+
+**Build…** is the make-your-own editor. Pick a **style** (frame, double frame,
+corner brackets, heart corners, gradient/rainbow frame, split frame — or, for
+backgrounds: solid, linear/radial **gradient**, diagonal split, dots, hearts,
+sparkles, rainbow), set the **colours** with a **colour wheel** (+ hex), and drag
+**thickness / corner radius / inset / pattern size** — all with a live preview.
+**Start from a preset** to edit any built-in frame (recolour it, make the
+gradient yours…), then **Apply**. Build… re-opens whatever you last applied to
+that slot, so you can keep tweaking.
+
+Or **Import…** your own PNG. Buttons and the char_icon each have their own
+overlays (or none).
 
 ### Char icon
 - Choose which emote it's **made from** (defaults to the first).

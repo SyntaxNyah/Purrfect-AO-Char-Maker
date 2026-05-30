@@ -10,14 +10,141 @@ import 'package:image/image.dart' as img;
 /// plain colours. Each preset is a `build(size)` that returns a fresh RGBA image.
 enum OverlayKind { border, background }
 
-typedef OverlayBuilder = img.Image Function(int size);
+/// Editable overlay styles. The first group are **borders** (frame the button),
+/// the rest are **backgrounds** (fill behind the sprite). Every style is driven
+/// by [OverlaySpec], so the in-app builder can make/tweak any of them.
+enum OverlayStyle {
+  // borders
+  frame,
+  doubleFrame,
+  corners,
+  cornerHearts,
+  gradientFrame,
+  rainbowFrame,
+  splitFrame,
+  // backgrounds
+  solid,
+  linearGradient,
+  radialGradient,
+  diagonalSplit,
+  dots,
+  hearts,
+  sparkles,
+  rainbow,
+}
 
+const Set<OverlayStyle> _borderStyles = <OverlayStyle>{
+  OverlayStyle.frame,
+  OverlayStyle.doubleFrame,
+  OverlayStyle.corners,
+  OverlayStyle.cornerHearts,
+  OverlayStyle.gradientFrame,
+  OverlayStyle.rainbowFrame,
+  OverlayStyle.splitFrame,
+};
+
+extension OverlayStyleInfo on OverlayStyle {
+  OverlayKind get kind =>
+      _borderStyles.contains(this) ? OverlayKind.border : OverlayKind.background;
+
+  String get label => switch (this) {
+        OverlayStyle.frame => 'Frame',
+        OverlayStyle.doubleFrame => 'Double frame',
+        OverlayStyle.corners => 'Corner brackets',
+        OverlayStyle.cornerHearts => 'Heart corners',
+        OverlayStyle.gradientFrame => 'Gradient frame',
+        OverlayStyle.rainbowFrame => 'Rainbow frame',
+        OverlayStyle.splitFrame => 'Split frame',
+        OverlayStyle.solid => 'Solid colour',
+        OverlayStyle.linearGradient => 'Linear gradient',
+        OverlayStyle.radialGradient => 'Radial gradient',
+        OverlayStyle.diagonalSplit => 'Diagonal split',
+        OverlayStyle.dots => 'Polka dots',
+        OverlayStyle.hearts => 'Hearts',
+        OverlayStyle.sparkles => 'Sparkles',
+        OverlayStyle.rainbow => 'Rainbow',
+      };
+
+  bool get usesColor1 =>
+      this != OverlayStyle.rainbow && this != OverlayStyle.rainbowFrame;
+  bool get usesColor2 => const <OverlayStyle>{
+        OverlayStyle.doubleFrame,
+        OverlayStyle.gradientFrame,
+        OverlayStyle.splitFrame,
+        OverlayStyle.linearGradient,
+        OverlayStyle.radialGradient,
+        OverlayStyle.diagonalSplit,
+      }.contains(this);
+  bool get usesPattern => const <OverlayStyle>{
+        OverlayStyle.dots,
+        OverlayStyle.hearts,
+        OverlayStyle.sparkles,
+      }.contains(this);
+  bool get usesThickness => kind == OverlayKind.border;
+  bool get usesRadius => const <OverlayStyle>{
+        OverlayStyle.frame,
+        OverlayStyle.doubleFrame,
+        OverlayStyle.cornerHearts,
+        OverlayStyle.gradientFrame,
+        OverlayStyle.rainbowFrame,
+      }.contains(this);
+  bool get usesInset =>
+      this == OverlayStyle.frame || this == OverlayStyle.doubleFrame;
+  bool get usesCell => usesPattern;
+}
+
+List<OverlayStyle> stylesForKind(OverlayKind k) =>
+    OverlayStyle.values.where((OverlayStyle s) => s.kind == k).toList();
+
+/// An editable, buildable overlay — the heart of both the built-in presets and
+/// the in-app "build your own border/background" editor. Mutate the fields and
+/// call [build] for a fresh image at any size.
+class OverlaySpec {
+  OverlaySpec({
+    required this.style,
+    this.color1 = 0xFF80AB,
+    this.color2 = 0xA8D8EA,
+    this.patternColor = 0xFFFFFF,
+    this.thickness = 0.08,
+    this.radius = 0.12,
+    this.inset = 0.0,
+    this.cell = 0.26,
+  });
+
+  OverlayStyle style;
+  int color1;
+  int color2;
+  int patternColor;
+  double thickness;
+  double radius;
+  double inset;
+  double cell;
+
+  OverlayKind get kind => style.kind;
+
+  img.Image build(int size) => _buildSpec(this, size);
+
+  OverlaySpec copy() => OverlaySpec(
+        style: style,
+        color1: color1,
+        color2: color2,
+        patternColor: patternColor,
+        thickness: thickness,
+        radius: radius,
+        inset: inset,
+        cell: cell,
+      );
+}
+
+/// A named, categorised overlay. Its [spec] is editable, so the builder can
+/// "start from" any preset.
 class OverlayPreset {
-  OverlayPreset(this.name, this.category, this.kind, this.build);
+  OverlayPreset(this.name, this.category, this.spec);
   final String name;
   final String category;
-  final OverlayKind kind;
-  final OverlayBuilder build;
+  final OverlaySpec spec;
+  OverlayKind get kind => spec.kind;
+  img.Image build(int size) => spec.build(size);
 }
 
 // ---- palettes ---------------------------------------------------------------
@@ -32,6 +159,8 @@ const int _drDespair = 0xE5006E;
 const int _drHope = 0xFF6FB5;
 const int _drBlack = 0x171717;
 const int _drWhite = 0xF5F5F5;
+
+const int _limbusRed = 0x9E2B28; // Limbus Company identity-frame crimson
 
 const int _sakura = 0xFFB7C5;
 const int _lavender = 0xC9B6E4;
@@ -58,113 +187,108 @@ class OverlayPresets {
 
   static final List<OverlayPreset> borders = <OverlayPreset>[
     // Umineko — gilded frames.
-    OverlayPreset('Umineko Gold', 'Umineko', OverlayKind.border,
-        (int s) => _stack(s, <img.Image>[
-              _ring(s, _uGold, thickness: .055, radiusFrac: .06),
-              _ring(s, _uGold, inset: .11, thickness: .02, radiusFrac: .04),
-            ])),
-    OverlayPreset('Umineko Crimson', 'Umineko', OverlayKind.border,
-        (int s) => _stack(s, <img.Image>[
-              _ring(s, _uCrimson, thickness: .085, radiusFrac: .05),
-              _ring(s, _uGold, inset: .085, thickness: .016, radiusFrac: .04),
-            ])),
-    OverlayPreset('Golden Corners', 'Umineko', OverlayKind.border,
-        (int s) => _corners(s, _uGold)),
+    OverlayPreset('Umineko Gold', 'Umineko',
+        OverlaySpec(style: OverlayStyle.doubleFrame, color1: _uGold, color2: _uGold, thickness: .055, radius: .06)),
+    OverlayPreset('Umineko Crimson', 'Umineko',
+        OverlaySpec(style: OverlayStyle.doubleFrame, color1: _uCrimson, color2: _uGold, thickness: .08, radius: .05)),
+    OverlayPreset('Golden Corners', 'Umineko',
+        OverlaySpec(style: OverlayStyle.corners, color1: _uGold, thickness: .07)),
 
     // Danganronpa.
-    OverlayPreset('DR Pink', 'Danganronpa', OverlayKind.border,
-        (int s) => _ring(s, _drPink, thickness: .09, radiusFrac: .04)),
-    OverlayPreset('Despair', 'Danganronpa', OverlayKind.border,
-        (int s) => _ring(s, _drDespair, thickness: .08, radiusFrac: .2)),
-    OverlayPreset('Monokuma', 'Danganronpa', OverlayKind.border,
-        (int s) => _splitFrame(s, _drBlack, _drWhite, thickness: .1)),
+    OverlayPreset('DR Pink', 'Danganronpa',
+        OverlaySpec(style: OverlayStyle.frame, color1: _drPink, thickness: .09, radius: .04)),
+    OverlayPreset('Despair', 'Danganronpa',
+        OverlaySpec(style: OverlayStyle.frame, color1: _drDespair, thickness: .08, radius: .2)),
+    OverlayPreset('Monokuma', 'Danganronpa',
+        OverlaySpec(style: OverlayStyle.splitFrame, color1: _drBlack, color2: _drWhite, thickness: .1)),
+
+    // Limbus Company — thin inset crimson identity frame.
+    OverlayPreset('Limbus', 'Limbus',
+        OverlaySpec(style: OverlayStyle.frame, color1: _limbusRed, thickness: .032, radius: 0, inset: .025)),
 
     // Kawaii pastels.
-    OverlayPreset('Sakura', 'Kawaii', OverlayKind.border,
-        (int s) => _ring(s, _sakura, thickness: .08, radiusFrac: .24)),
-    OverlayPreset('Lavender', 'Kawaii', OverlayKind.border,
-        (int s) => _ring(s, _lavender, thickness: .08, radiusFrac: .24)),
-    OverlayPreset('Mint', 'Kawaii', OverlayKind.border,
-        (int s) => _ring(s, _mint, thickness: .08, radiusFrac: .24)),
-    OverlayPreset('Cotton Candy', 'Kawaii', OverlayKind.border,
-        (int s) => _gradientRing(s, _sakura, _babyBlue,
-            thickness: .09, radiusFrac: .22)),
-    OverlayPreset('Pastel Rainbow', 'Kawaii', OverlayKind.border,
-        (int s) => _rainbowRing(s, thickness: .1, radiusFrac: .2, pastel: true)),
-    OverlayPreset('Heart Corners', 'Kawaii', OverlayKind.border,
-        (int s) => _stack(s, <img.Image>[
-              _ring(s, _rose, thickness: .045, radiusFrac: .22),
-              _cornerHearts(s, _rose),
-            ])),
+    OverlayPreset('Sakura', 'Kawaii',
+        OverlaySpec(style: OverlayStyle.frame, color1: _sakura, thickness: .08, radius: .24)),
+    OverlayPreset('Lavender', 'Kawaii',
+        OverlaySpec(style: OverlayStyle.frame, color1: _lavender, thickness: .08, radius: .24)),
+    OverlayPreset('Mint', 'Kawaii',
+        OverlaySpec(style: OverlayStyle.frame, color1: _mint, thickness: .08, radius: .24)),
+    OverlayPreset('Cotton Candy', 'Kawaii',
+        OverlaySpec(style: OverlayStyle.gradientFrame, color1: _sakura, color2: _babyBlue, thickness: .09, radius: .22)),
+    OverlayPreset('Pastel Rainbow', 'Kawaii',
+        OverlaySpec(style: OverlayStyle.rainbowFrame, thickness: .1, radius: .2)),
+    OverlayPreset('Heart Corners', 'Kawaii',
+        OverlaySpec(style: OverlayStyle.cornerHearts, color1: _rose, thickness: .075, radius: .22)),
 
     // Classic.
-    OverlayPreset('White Frame', 'Classic', OverlayKind.border,
-        (int s) => _ring(s, 0xFFFFFF, thickness: .06)),
-    OverlayPreset('Black Frame', 'Classic', OverlayKind.border,
-        (int s) => _ring(s, 0x000000, thickness: .06)),
-    OverlayPreset('Double Gold', 'Classic', OverlayKind.border,
-        (int s) => _stack(s, <img.Image>[
-              _ring(s, _uGold, thickness: .035),
-              _ring(s, _uGold, inset: .1, thickness: .02),
-            ])),
+    OverlayPreset('White Frame', 'Classic',
+        OverlaySpec(style: OverlayStyle.frame, color1: 0xFFFFFF, thickness: .06, radius: 0)),
+    OverlayPreset('Black Frame', 'Classic',
+        OverlaySpec(style: OverlayStyle.frame, color1: 0x000000, thickness: .06, radius: 0)),
+    OverlayPreset('Double Gold', 'Classic',
+        OverlaySpec(style: OverlayStyle.doubleFrame, color1: _uGold, color2: _uGold, thickness: .035, radius: 0)),
 
     // Many colours.
     for (final c in _palette)
-      OverlayPreset(c.$1, 'Colours', OverlayKind.border,
-          (int s) => _ring(s, c.$2, thickness: .08, radiusFrac: .14)),
+      OverlayPreset(c.$1, 'Colours',
+          OverlaySpec(style: OverlayStyle.frame, color1: c.$2, thickness: .08, radius: .14)),
   ];
 
   static final List<OverlayPreset> backgrounds = <OverlayPreset>[
     // Umineko.
-    OverlayPreset('Umineko Crimson', 'Umineko', OverlayKind.background,
-        (int s) => _radial(s, _uBlood, _uCrimson)),
-    OverlayPreset('Umineko Night', 'Umineko', OverlayKind.background,
-        (int s) => _linear(s, _uPurple, _uCrimson)),
-    OverlayPreset('Golden Hour', 'Umineko', OverlayKind.background,
-        (int s) => _radial(s, _uGold, _uCrimson)),
+    OverlayPreset('Umineko Crimson', 'Umineko',
+        OverlaySpec(style: OverlayStyle.radialGradient, color1: _uBlood, color2: _uCrimson)),
+    OverlayPreset('Umineko Night', 'Umineko',
+        OverlaySpec(style: OverlayStyle.linearGradient, color1: _uPurple, color2: _uCrimson)),
+    OverlayPreset('Golden Hour', 'Umineko',
+        OverlaySpec(style: OverlayStyle.radialGradient, color1: _uGold, color2: _uCrimson)),
 
     // Danganronpa.
-    OverlayPreset('Despair', 'Danganronpa', OverlayKind.background,
-        (int s) => _radial(s, _drPink, _drBlack)),
-    OverlayPreset('Monokuma', 'Danganronpa', OverlayKind.background,
-        (int s) => _diagSplit(s, _drBlack, _drWhite)),
-    OverlayPreset('Hope Pink', 'Danganronpa', OverlayKind.background,
-        (int s) => _linear(s, _drHope, _drPink)),
+    OverlayPreset('Despair', 'Danganronpa',
+        OverlaySpec(style: OverlayStyle.radialGradient, color1: _drPink, color2: _drBlack)),
+    OverlayPreset('Monokuma', 'Danganronpa',
+        OverlaySpec(style: OverlayStyle.diagonalSplit, color1: _drBlack, color2: _drWhite)),
+    OverlayPreset('Hope Pink', 'Danganronpa',
+        OverlaySpec(style: OverlayStyle.linearGradient, color1: _drHope, color2: _drPink)),
 
     // Kawaii.
-    OverlayPreset('Pastel Dream', 'Kawaii', OverlayKind.background,
-        (int s) => _linear(s, _sakura, _lavender)),
-    OverlayPreset('Cotton Candy', 'Kawaii', OverlayKind.background,
-        (int s) => _linear(s, _sakura, _babyBlue, vertical: false)),
-    OverlayPreset('Sakura Petals', 'Kawaii', OverlayKind.background,
-        (int s) => _dots(s, _sakura, 0xFFFFFF)),
-    OverlayPreset('Mint Hearts', 'Kawaii', OverlayKind.background,
-        (int s) => _hearts(s, _mint, 0xFFFFFF)),
-    OverlayPreset('Peach Hearts', 'Kawaii', OverlayKind.background,
-        (int s) => _hearts(s, _peach, 0xFFFFFF)),
-    OverlayPreset('Lemon Dots', 'Kawaii', OverlayKind.background,
-        (int s) => _dots(s, _lemon, 0xFFFFFF)),
-    OverlayPreset('Lavender Sparkle', 'Kawaii', OverlayKind.background,
-        (int s) => _sparkles(s, _lavender, 0xFFFFFF)),
+    OverlayPreset('Pastel Dream', 'Kawaii',
+        OverlaySpec(style: OverlayStyle.linearGradient, color1: _sakura, color2: _lavender)),
+    OverlayPreset('Cotton Candy', 'Kawaii',
+        OverlaySpec(style: OverlayStyle.linearGradient, color1: _sakura, color2: _babyBlue)),
+    OverlayPreset('Sakura Petals', 'Kawaii',
+        OverlaySpec(style: OverlayStyle.dots, color1: _sakura, patternColor: 0xFFFFFF)),
+    OverlayPreset('Mint Hearts', 'Kawaii',
+        OverlaySpec(style: OverlayStyle.hearts, color1: _mint, patternColor: 0xFFFFFF)),
+    OverlayPreset('Peach Hearts', 'Kawaii',
+        OverlaySpec(style: OverlayStyle.hearts, color1: _peach, patternColor: 0xFFFFFF)),
+    OverlayPreset('Lemon Dots', 'Kawaii',
+        OverlaySpec(style: OverlayStyle.dots, color1: _lemon, patternColor: 0xFFFFFF)),
+    OverlayPreset('Lavender Sparkle', 'Kawaii',
+        OverlaySpec(style: OverlayStyle.sparkles, color1: _lavender, patternColor: 0xFFFFFF)),
 
     // Vibes.
-    OverlayPreset('Rainbow', 'Vibes', OverlayKind.background,
-        (int s) => _rainbowBg(s)),
-    OverlayPreset('Sunset', 'Vibes', OverlayKind.background,
-        (int s) => _linear3(s, 0xFFC371, _rose, _uPurple)),
-    OverlayPreset('Ocean', 'Vibes', OverlayKind.background,
-        (int s) => _linear(s, _babyBlue, 0x1565C0)),
-    OverlayPreset('Vaporwave', 'Vibes', OverlayKind.background,
-        (int s) => _linear3(s, 0xFF6AD5, 0xC774E8, 0x8795E8)),
+    OverlayPreset('Rainbow', 'Vibes', OverlaySpec(style: OverlayStyle.rainbow)),
+    OverlayPreset('Sunset', 'Vibes',
+        OverlaySpec(style: OverlayStyle.linearGradient, color1: 0xFFC371, color2: _uPurple)),
+    OverlayPreset('Ocean', 'Vibes',
+        OverlaySpec(style: OverlayStyle.linearGradient, color1: _babyBlue, color2: 0x1565C0)),
+    OverlayPreset('Vaporwave', 'Vibes',
+        OverlaySpec(style: OverlayStyle.linearGradient, color1: 0xFF6AD5, color2: 0x8795E8)),
 
     // Many colours (soft radial of each).
     for (final c in _palette)
-      OverlayPreset(c.$1, 'Colours', OverlayKind.background,
-          (int s) => _radial(s, _lighten(c.$2, .35), c.$2)),
+      OverlayPreset(c.$1, 'Colours',
+          OverlaySpec(style: OverlayStyle.radialGradient, color1: _lighten(c.$2, .35), color2: c.$2)),
   ];
 
   static List<OverlayPreset> forKind(OverlayKind kind) =>
       kind == OverlayKind.border ? borders : backgrounds;
+
+  /// A sensible blank starting point for the builder, per slot kind.
+  static OverlaySpec defaultSpec(OverlayKind kind) => kind == OverlayKind.border
+      ? OverlaySpec(style: OverlayStyle.frame, color1: _drPink, thickness: .08, radius: .12)
+      : OverlaySpec(style: OverlayStyle.linearGradient, color1: _sakura, color2: _lavender);
 }
 
 // ---- colour helpers ---------------------------------------------------------
@@ -207,9 +331,64 @@ int _hsv(double h, double s, double v) {
       ((b + m) * 255).round();
 }
 
+// ---- spec → image -----------------------------------------------------------
+
+img.Image _buildSpec(OverlaySpec s, int size) {
+  switch (s.style) {
+    case OverlayStyle.frame:
+      return _ring(size, s.color1,
+          inset: s.inset, thickness: s.thickness, radiusFrac: s.radius);
+    case OverlayStyle.doubleFrame:
+      return _stack(size, <img.Image>[
+        _ring(size, s.color1, inset: s.inset, thickness: s.thickness, radiusFrac: s.radius),
+        _ring(size, s.color2,
+            inset: s.inset + s.thickness + 0.045,
+            thickness: (s.thickness * 0.45).clamp(0.01, 1.0),
+            radiusFrac: math.max(0.0, s.radius - s.thickness)),
+      ]);
+    case OverlayStyle.corners:
+      return _corners(size, s.color1, thickness: s.thickness);
+    case OverlayStyle.cornerHearts:
+      return _stack(size, <img.Image>[
+        _ring(size, s.color1,
+            thickness: (s.thickness * 0.6).clamp(0.01, 1.0), radiusFrac: s.radius),
+        _cornerHearts(size, s.color1),
+      ]);
+    case OverlayStyle.gradientFrame:
+      return _gradientRing(size, s.color1, s.color2,
+          thickness: s.thickness, radiusFrac: s.radius);
+    case OverlayStyle.rainbowFrame:
+      return _rainbowRing(size, thickness: s.thickness, radiusFrac: s.radius, pastel: true);
+    case OverlayStyle.splitFrame:
+      return _splitFrame(size, s.color1, s.color2, thickness: s.thickness);
+    case OverlayStyle.solid:
+      return _solid(size, s.color1);
+    case OverlayStyle.linearGradient:
+      return _linear(size, s.color1, s.color2);
+    case OverlayStyle.radialGradient:
+      return _radial(size, s.color1, s.color2);
+    case OverlayStyle.diagonalSplit:
+      return _diagSplit(size, s.color1, s.color2);
+    case OverlayStyle.dots:
+      return _dots(size, s.color1, s.patternColor, cellFrac: s.cell);
+    case OverlayStyle.hearts:
+      return _hearts(size, s.color1, s.patternColor, cellFrac: s.cell);
+    case OverlayStyle.sparkles:
+      return _sparkles(size, s.color1, s.patternColor, cellFrac: s.cell);
+    case OverlayStyle.rainbow:
+      return _rainbowBg(size);
+  }
+}
+
 // ---- drawing primitives -----------------------------------------------------
 
 img.Image _canvas(int s) => img.Image(width: s, height: s, numChannels: 4);
+
+img.Image _solid(int s, int c) {
+  final img.Image im = _canvas(s);
+  _fill(im, c);
+  return im;
+}
 
 void _set(img.Image im, int x, int y, int c, [int a = 255]) {
   if (x >= 0 && y >= 0 && x < im.width && y < im.height) {
@@ -384,21 +563,6 @@ img.Image _linear(int s, int c0, int c1, {bool vertical = true}) {
       final double t = s <= 1 ? 0 : (vertical ? y : x) / (s - 1);
       im.setPixelRgba(x, y, _mix(_ri(c0), _ri(c1), t), _mix(_gi(c0), _gi(c1), t),
           _mix(_bi(c0), _bi(c1), t), 255);
-    }
-  }
-  return im;
-}
-
-img.Image _linear3(int s, int c0, int c1, int c2) {
-  final img.Image im = _canvas(s);
-  for (int y = 0; y < s; y++) {
-    final double f = s <= 1 ? 0 : y / (s - 1);
-    final int a = f < 0.5 ? c0 : c1;
-    final int b = f < 0.5 ? c1 : c2;
-    final double t = f < 0.5 ? f / 0.5 : (f - 0.5) / 0.5;
-    for (int x = 0; x < s; x++) {
-      im.setPixelRgba(x, y, _mix(_ri(a), _ri(b), t), _mix(_gi(a), _gi(b), t),
-          _mix(_bi(a), _bi(b), t), 255);
     }
   }
   return im;

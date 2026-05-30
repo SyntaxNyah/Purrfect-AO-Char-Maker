@@ -34,8 +34,9 @@ lib/
                                 multi-snip, mouse, link-layers)
       button_maker.dart         buttons + char_icon: head/face vs full framing
                                 (silhouette head crop), zoom/offset, overlays
-      overlay_presets.dart      built-in button/icon borders + backgrounds
-                                (Umineko/Danganronpa/Kawaii/Colours, procedural)
+      overlay_presets.dart      editable button/icon borders + backgrounds
+                                (OverlaySpec/OverlayStyle; procedural presets:
+                                Umineko/Danganronpa/Limbus/Kawaii/Colours…)
       bulk_processor.dart       apply pipeline / convert across many files
       webp_codec.dart           WebP encode interface (lossy + lossless, animated)
       webp_codec_io.dart          native: libwebp + libwebpmux via dart:ffi
@@ -67,7 +68,8 @@ lib/
       app_state.dart            ChangeNotifier hub the screens talk to
       theme.dart
       credits.dart              About dialog + Home credits card (maintainer/repo)
-      widgets/                  checker_image, zoom_canvas
+      widgets/                  checker_image, zoom_canvas, overlay_builder
+                                (custom border/background editor + colour wheel)
       screens/                  home, ini_builder (char.ini Options editor),
                                 editor, color_lab, animation_studio,
                                 button_studio, edit, mixer, bulk, plugins

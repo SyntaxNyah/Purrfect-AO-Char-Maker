@@ -29,9 +29,10 @@ Runs natively on **Windows, Linux, macOS, Android, iOS**, and as a **website**
   **and** the character-select `char_icon.png`. They frame the character's
   **face by default** (AO buttons show expressions, not whole bodies); switch to
   full-body, tune the size/zoom/position, or lay a **border on top** (KFO-style)
-  — import your own *or* pick from **dozens of built-in border & background
-  presets** (Umineko, Danganronpa, kawaii pastels, hearts/sparkles, and a big
-  colour palette). Rendered **crisp** (lossless PNG, never upscaled). Drop your
+  — import your own, pick from **dozens of built-in border & background presets**
+  (Umineko, Danganronpa, Limbus, kawaii pastels, hearts/sparkles, and a big colour
+  palette), *or* **build your own in-app** (style + **colour-wheel** + gradients +
+  thickness/radius, with a live preview — start from any preset and tweak it). Rendered **crisp** (lossless PNG, never upscaled). Drop your
   own button in to override.
 - **Smart guesses.** Friendly emote names, preanimation detection, and optional
   sound-effect guesses (keyword → SFX, e.g. *slam* → desk-slam) — all adjustable.

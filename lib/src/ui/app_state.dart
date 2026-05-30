@@ -20,6 +20,7 @@ import '../imaging/bulk_processor.dart';
 import '../imaging/button_maker.dart';
 import '../imaging/codecs.dart';
 import '../imaging/color_ops.dart';
+import '../imaging/overlay_presets.dart';
 import '../imaging/sprite_edit.dart';
 import '../imaging/webp_codec.dart';
 import '../platform/save_file.dart';
@@ -55,6 +56,11 @@ class MixSource {
 class OverlaySlot {
   Uint8List? bytes;
   img.Image? image;
+
+  /// The editable spec this overlay came from (a preset or the in-app builder),
+  /// or null if it was an imported PNG. Lets "Build…" re-open and tweak it.
+  OverlaySpec? spec;
+
   bool get isSet => image != null;
 }
 
@@ -128,9 +134,13 @@ class AppState extends ChangeNotifier {
   final OverlaySlot iconFg = OverlaySlot();
 
   /// Load (or clear, with null [bytes]) an overlay [slot]. [ext] helps decode.
-  void setOverlay(OverlaySlot slot, Uint8List? bytes, {String ext = 'png'}) {
+  /// Pass [spec] when the art came from a preset/builder (so it can be re-edited);
+  /// it's cleared for imported PNGs.
+  void setOverlay(OverlaySlot slot, Uint8List? bytes,
+      {String ext = 'png', OverlaySpec? spec}) {
     slot.bytes = bytes;
     slot.image = bytes == null ? null : Codecs.decodeFirstFrame(bytes, ext: ext);
+    slot.spec = bytes == null ? null : spec;
     notifyListeners();
   }
 

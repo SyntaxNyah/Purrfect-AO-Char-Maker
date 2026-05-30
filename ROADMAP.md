@@ -90,10 +90,11 @@ Legend: ✅ done · 🟡 partial · ⬜ planned
   `dart run flutter_launcher_icons`) — placeholder art, swap in the Pinsel mascot
 - ⬜ Drag-and-drop import
 - ⬜ Move heavy bakes (bulk/animation export) into isolates
-- 🟡 Button overlay/border + background compositor UI (done for auto buttons +
-  char_icon, incl. **dozens of built-in border/background presets** — Umineko,
-  Danganronpa, kawaii, colours; the full mask/crop `ButtonMaker.renderComposite`
-  UI is still planned)
+- ✅ Button overlay/border + background system (auto buttons + char_icon): **dozens
+  of built-in presets** (Umineko, Danganronpa, Limbus, kawaii, colours) **and an
+  in-app builder** (editable `OverlaySpec`: style + colour-wheel + gradients +
+  thickness/radius/inset, live preview, start-from-preset)
+- ⬜ Full mask/crop button compositor UI (engine: `ButtonMaker.renderComposite`)
 - 🟡 Region picker overlay (drag a box) — done in the Mixer (snip/arrange canvas);
   still planned for region animation/outfit edits
 - ⬜ Theming / accessibility pass

@@ -11,6 +11,7 @@ import '../../imaging/codecs.dart';
 import '../../imaging/overlay_presets.dart';
 import '../app_state.dart';
 import '../widgets/checker_image.dart';
+import '../widgets/overlay_builder.dart';
 
 /// Button & char-icon studio.
 ///
@@ -266,13 +267,24 @@ class _OverlayControlsState extends State<_OverlayControls> {
     widget.onChanged();
   }
 
-  void _applyPreset(OverlayPreset p) {
+  void _applyPreset(OverlayPreset p) => _applySpec(p.spec.copy());
+
+  /// Apply an editable spec (from a preset or the builder), remembering it so
+  /// "Build…" can re-open and tweak it.
+  void _applySpec(OverlaySpec spec) {
     // Bake at a high-ish resolution; renderFramed/_fit scales it to the button.
-    final Uint8List bytes = Codecs.encodePng(p.build(256));
-    context.read<AppState>().setOverlay(widget.slot, bytes, ext: 'png');
+    final Uint8List bytes = Codecs.encodePng(spec.build(256));
+    context.read<AppState>().setOverlay(widget.slot, bytes, ext: 'png', spec: spec);
     setState(() {});
     widget.onChanged();
   }
+
+  void _build() => showOverlayBuilder(
+        context,
+        kind: widget.kind,
+        initial: widget.slot.spec,
+        onApply: _applySpec,
+      );
 
   void _clear() {
     context.read<AppState>().setOverlay(widget.slot, null);
@@ -314,6 +326,7 @@ class _OverlayControlsState extends State<_OverlayControls> {
                     _showOverlayPresetPicker(context, widget.kind, _applyPreset),
                 child: const Text('Presets'),
               ),
+              OutlinedButton(onPressed: _build, child: const Text('Build…')),
               TextButton(onPressed: _pick, child: Text(set ? 'Import' : 'Import…')),
               if (set)
                 IconButton(
