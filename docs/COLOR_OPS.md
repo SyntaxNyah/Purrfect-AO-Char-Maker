@@ -36,6 +36,29 @@ Colours are hex strings: `#rrggbb`, `#aarrggbb`, or without the `#`. All ops
 | `alphaThreshold` | `level` | clip alpha to 0/255 |
 | `channelSwap` | `order`(strs, e.g. `gbr`) | reorder RGB channels |
 | `colorBalance` | `r,g,b` (−255..255) | add per-channel offset |
+| `splitTone` | `shadow,highlight`(strs), `amount` | tint shadows & highlights separately |
+| `selectiveSaturation` | `center, width, amount` | saturate/desaturate one hue band |
+| `hsvAdjust` | `h, s, v` (additive) | nudge hue/sat/value |
+| `vignette` | `amount, feather` | darken toward the edges |
+| `scanlines` | `gap, amount` | CRT scanline darkening |
+| `noise` | `amount, mono` | deterministic film grain |
+| `chromaShift` | `offset` (px) | chromatic aberration (R/B split) |
+| `pixelate` | `size` (px) | mosaic / pixelation |
+| `solarize` | `threshold` (0..255) | invert only channels brighter than threshold |
+| `gradientTint` | `color0,color1`(strs), `angle` (deg), `strength` | blend a directional 2-colour wash |
+| `dither` | `levels` (≥2) | ordered (Bayer 4×4) dithering |
+| `crossProcess` | `strength` (0..1) | filmic cross-process curves |
+| `bleachBypass` | `strength` (0..1) | silvery, high-contrast cinema look |
+| `sharpen` | `amount` (0..3) | 3×3 unsharp-mask sharpen |
+| `blur` | `radius` (px) | alpha-weighted box blur |
+| `outline`† | `color`(strs), `size` (px), `threshold` (alpha) | solid outline around the silhouette |
+| `dropShadow`† | `color`(strs), `dx, dy` (px), `opacity`, `threshold` | drop shadow behind the sprite |
+| `glow`† | `color`(strs), `radius` (px), `strength`, `threshold` | soft outer glow |
+
+† **Spatial** ops that draw *into* the transparent halo around the sprite, so
+unlike every other op they intentionally write to fully-transparent pixels. They
+clone the frame first (they read neighbours), so they're a touch heavier — fine
+for sprites, and the live preview runs downscaled anyway.
 
 ## Examples
 
@@ -61,6 +84,12 @@ Fire gradient map:
 { "type": "gradientMap",
   "strs": { "stop0": "#FF000000", "stop1": "#FFFF5A00", "stop2": "#FFFFFFC0" },
   "nums": { "pos0": 0, "pos1": 0.6, "pos2": 1, "strength": 1 } }
+```
+
+A black outline + soft cyan glow (stack them — outline first):
+```json
+{ "type": "outline", "strs": { "color": "#FF000000" }, "nums": { "size": 2 } }
+{ "type": "glow", "strs": { "color": "#FF8AD0FF" }, "nums": { "radius": 6, "strength": 1 } }
 ```
 
 ## Using ops in code

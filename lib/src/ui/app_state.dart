@@ -32,6 +32,23 @@ class PickedFile {
   final Uint8List bytes;
 }
 
+/// A second sprite folder loaded **only** to graft parts from in the Mixer
+/// (e.g. another character whose head you want on your project's body). It is
+/// scanned into [SpriteGroup]s but deliberately kept out of the project [scan]
+/// and the export, so loading it never disturbs the character you're building.
+class MixSource {
+  MixSource(this.label, this.groups);
+
+  /// Display name (the folder's name, or `parts N`).
+  final String label;
+
+  /// Classified sprite groups from the folder.
+  final List<SpriteGroup> groups;
+
+  /// Base names available to snip from, in scan order.
+  List<String> get bases => groups.map((SpriteGroup g) => g.base).toList();
+}
+
 /// The single source of UI truth. Holds the working project (an in-memory
 /// workspace so behaviour is identical on every platform), the parsed/auto-built
 /// [Character], undo/redo, the live colour pipeline, and all the actions the
@@ -54,6 +71,14 @@ class AppState extends ChangeNotifier {
 
   /// Decoded first-frame cache (rel -> image) to keep previews snappy.
   final Map<String, img.Image?> _decodeCache = <String, img.Image?>{};
+
+  /// Extra sprite folders loaded just for the Mixer (the "parts" you graft on).
+  /// Stored separately so they never pollute the project or its export.
+  final List<MixSource> mixSources = <MixSource>[];
+
+  /// Workspace path namespace for [mixSources] files — filtered out of every
+  /// project scan via [_projectFiles].
+  static const String _mixPrefix = '__mixparts';
 
   bool get hasProject => character != null;
 
@@ -86,9 +111,16 @@ class AppState extends ChangeNotifier {
     _setBusy(false, 'Imported ${files.length} files.');
   }
 
+  /// Workspace files that belong to the project (everything except the Mixer's
+  /// loaded "parts" folders, which live under [_mixPrefix]).
+  Future<List<String>> _projectFiles() async => <String>[
+        for (final String f in await workspace.listFiles())
+          if (!f.startsWith('$_mixPrefix/')) f,
+      ];
+
   Future<void> _rebuild() async {
     _decodeCache.clear();
-    final List<String> files = await workspace.listFiles();
+    final List<String> files = await _projectFiles();
     scan = _scanner.fromPaths(files);
 
     // If an existing char.ini is present, honour it; otherwise auto-build.
@@ -256,7 +288,7 @@ class AppState extends ChangeNotifier {
     }
     if (movedFiles) {
       // Refresh sprite groups from the renamed files (keeps edits intact).
-      scan = _scanner.fromPaths(await workspace.listFiles());
+      scan = _scanner.fromPaths(await _projectFiles());
       _decodeCache.clear();
     }
     history.push(character!);
@@ -286,7 +318,7 @@ class AppState extends ChangeNotifier {
     }
   }
 
-  /// Sprite base names available for mixing/compositing.
+  /// Sprite base names available for mixing/compositing (the project's own).
   List<String> spriteBases() =>
       (scan?.groups ?? <SpriteGroup>[]).map((SpriteGroup g) => g.base).toList();
 
@@ -294,6 +326,56 @@ class AppState extends ChangeNotifier {
       .firstWhereOrNull((SpriteGroup g) => g.base == base)
       ?.representative
       ?.relPath;
+
+  // ---------------------------------------------------------------------------
+  // Mixer "parts" sources — load a SECOND folder to graft sprites from
+  // ---------------------------------------------------------------------------
+
+  /// Load a folder of sprites as a Mixer "parts" source (e.g. another
+  /// character's sprites you want to snip a head/limb from). Scanned for clean
+  /// `(a)`/`(b)`/`(c)` grouping but stashed under [_mixPrefix] and excluded from
+  /// the project, so dumping a second folder here never touches the character
+  /// you're building or its export.
+  Future<void> importMixParts(List<PickedFile> files, {String? label}) async {
+    if (files.isEmpty) return;
+    final String safe = (label == null || label.trim().isEmpty)
+        ? 'parts ${mixSources.length + 1}'
+        : label.trim().replaceAll('/', '_');
+    _setBusy(true, 'Loading "$safe" sprites…');
+
+    // Scan by the files' own names (so (a)/(b)/(c) + bases resolve normally),
+    // but store the bytes under the mix namespace.
+    final List<String> names = <String>[];
+    for (final PickedFile f in files) {
+      final String name = Workspace.norm(f.name);
+      workspace.put('$_mixPrefix/$safe/$name', f.bytes);
+      names.add(name);
+    }
+    final ScanResult s = _scanner.fromPaths(names);
+    mixSources.removeWhere((MixSource m) => m.label == safe);
+    if (s.groups.isNotEmpty) mixSources.add(MixSource(safe, s.groups));
+    _decodeCache.clear();
+    _setBusy(false,
+        'Loaded ${s.groups.length} sprite group(s) from "$safe" for mixing.');
+  }
+
+  /// Forget a loaded parts source (its files stay in the workspace but are
+  /// already excluded from the project; they're harmless dead weight).
+  void removeMixSource(String label) {
+    mixSources.removeWhere((MixSource m) => m.label == label);
+    notifyListeners();
+  }
+
+  /// Representative file path for [base] inside the loaded parts [sourceLabel].
+  String? relForMixBase(String sourceLabel, String base) {
+    final MixSource? m =
+        mixSources.firstWhereOrNull((MixSource m) => m.label == sourceLabel);
+    final SpriteFile? rep = m?.groups
+        .firstWhereOrNull((SpriteGroup g) => g.base == base)
+        ?.representative;
+    if (m == null || rep == null) return null;
+    return Workspace.norm('$_mixPrefix/${m.label}/${rep.relPath}');
+  }
 
   /// Save a freshly composited image as a brand-new static sprite + emote, so
   /// "head-on-body" creations become first-class emotes in the project.
@@ -374,21 +456,31 @@ class AppState extends ChangeNotifier {
       final IntRect rect = SpriteEdit.computeRect(decoded.values.toList(), spec);
 
       for (final MapEntry<String, img.Image> e in decoded.entries) {
-        final String ext = e.key.split('.').last.toLowerCase();
         final img.Image out = SpriteEdit.cropTo(e.value, rect);
-        await workspace.writeBytes(e.key, await _encodeForFile(out, ext));
+        await _writeSpriteInPlace(e.key, out);
         edited++;
       }
     }
     _decodeCache.clear();
-    scan = _scanner.fromPaths(await workspace.listFiles());
+    scan = _scanner.fromPaths(await _projectFiles());
     _setBusy(false, 'Edited $edited sprite file(s).');
     return edited;
   }
 
-  /// Re-encode preserving the file's format (WebP via the encoder; otherwise
-  /// PNG/APNG/GIF). Falls back to PNG if WebP isn't available.
-  Future<Uint8List> _encodeForFile(img.Image image, String ext) async {
+  /// Re-encode [image] and write it back over the sprite at [rel], preserving
+  /// the container format wherever the platform can. Returns the path actually
+  /// written — identical to [rel] except when a source format we can't re-encode
+  /// here (a WebP without the encoder, or a non-AO format like JPG/BMP) has to be
+  /// rewritten as APNG/PNG; in that case the original file is deleted so a file's
+  /// bytes and extension never disagree.
+  ///
+  /// This is what makes "Apply" land on the file the app previews and exports:
+  /// the old code routed every WebP sprite (the default format here) through a
+  /// fixed `webp → .apng` rename, writing a phantom `.apng` next to the
+  /// untouched `.webp` the scan still pointed at — so recolours/edits silently
+  /// "did nothing".
+  Future<String> _writeSpriteInPlace(String rel, img.Image image) async {
+    final String ext = p.extension(rel).replaceFirst('.', '').toLowerCase();
     if (ext == 'webp') {
       final WebpResult r = image.frames.length > 1
           ? await WebpEncoder.instance.encodeAnimation(
@@ -398,10 +490,19 @@ class AppState extends ChangeNotifier {
                   .toList(),
               lossless: true)
           : await WebpEncoder.instance.encode(image, lossless: true);
-      if (r.ok && r.bytes != null) return r.bytes!;
-      return Codecs.encodePng(image);
+      if (r.ok && r.bytes != null) {
+        await workspace.writeBytes(rel, r.bytes!);
+        return rel;
+      }
+      // WebP encoder unavailable here — fall through to the APNG fallback so the
+      // edit still lands (just in a different container).
     }
-    return Codecs.encodeForExtension(image, ext);
+    final String outExt = ext == 'webp' ? 'apng' : Codecs.outputExtensionFor(ext);
+    final String outRel =
+        ext == outExt ? rel : '${rel.substring(0, rel.length - ext.length)}$outExt';
+    await workspace.writeBytes(outRel, Codecs.encodeForExtension(image, outExt));
+    if (outRel != rel) await workspace.delete(rel);
+    return outRel;
   }
 
   // ---------------------------------------------------------------------------
@@ -425,30 +526,50 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Bake the live pipeline into one or all sprites in the project.
+  /// Bake the live pipeline into the project's sprites: every file of the
+  /// selected emote (so its `(a)`/`(b)`/`(c)` and all animation frames recolour
+  /// together) or, when [allSprites] is set, every sprite. Each sprite is
+  /// re-encoded **in place** in its original format via [_writeSpriteInPlace]
+  /// (WebP stays WebP, falling back to APNG only when the encoder is missing) so
+  /// the recolour actually lands on the file the app previews and exports.
   Future<int> applyPipeline({required bool allSprites}) async {
-    if (livePipeline.isEmpty) return 0;
+    if (livePipeline.isEmpty || scan == null) return 0;
     _setBusy(true, 'Applying colour pipeline…');
-    final List<String> targets = <String>[];
+
+    final List<SpriteGroup> groups = <SpriteGroup>[];
     if (allSprites) {
-      for (final SpriteGroup g in scan?.groups ?? <SpriteGroup>[]) {
-        for (final SpriteFile f in <SpriteFile?>[g.idle, g.talk, g.post, ...g.statics]
-            .whereType<SpriteFile>()) {
-          targets.add(f.relPath);
+      groups.addAll(scan!.groups);
+    } else if (current != null) {
+      final SpriteGroup? g =
+          scan!.groups.firstWhereOrNull((SpriteGroup g) => g.base == current!.sprite);
+      if (g != null) groups.add(g);
+    }
+
+    final List<String> targets = <String>[
+      for (final SpriteGroup g in groups)
+        for (final SpriteFile f
+            in <SpriteFile?>[g.idle, g.talk, g.post, ...g.statics].whereType<SpriteFile>())
+          f.relPath,
+    ];
+
+    int ok = 0;
+    int done = 0;
+    for (final String rel in targets) {
+      if (await workspace.exists(rel)) {
+        final img.Image? im = Codecs.decode(await workspace.readBytes(rel),
+            ext: p.extension(rel).replaceFirst('.', ''));
+        if (im != null) {
+          ImageOps.applyAll(im, livePipeline);
+          await _writeSpriteInPlace(rel, im);
+          ok++;
         }
       }
-    } else if (current != null) {
-      final String? rel = spriteRelFor(current!);
-      if (rel != null) targets.add(rel);
+      _progress(++done, targets.length, 'Recolour');
     }
-    final BulkProcessor proc = BulkProcessor(workspace);
-    final List<BulkResult> res = await proc.run(
-      files: targets,
-      pipeline: livePipeline,
-      onProgress: (int d, int t, String l) => _progress(d, t, 'Recolour'),
-    );
+
     _decodeCache.clear();
-    final int ok = res.where((BulkResult r) => r.ok).length;
+    // Paths can shift on fallback (webp → apng), so refresh the scan.
+    scan = _scanner.fromPaths(await _projectFiles());
     _setBusy(false, 'Recoloured $ok sprite(s).');
     return ok;
   }

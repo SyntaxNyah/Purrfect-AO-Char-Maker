@@ -3,12 +3,33 @@
 Combine parts of different sprites — the classic "put character A's head on
 character B's body". Open the **Mixer** tab.
 
+## The two-folder workflow (most common)
+
+A frankensprite usually mixes **two different characters**, which means **two
+separate sprite folders**:
+
+- the **body** comes from your **loaded project** (import it from Home as usual);
+- the **part** you graft on (a head, a limb, a hat) comes from a **second
+  folder** you load right inside the Mixer.
+
+That second folder is loaded as a **"parts" source**: it's scanned so you can
+pick any of its sprites, but it is kept **completely separate** from your
+project — it never becomes an emote and is **never exported**. You can load
+several, switch between them, and remove them with the ✕.
+
+> Mixing within a *single* project still works too: leave **Snip parts from** on
+> *This project*.
+
 ## In the app
-1. **Body (base):** pick the sprite that forms the bottom layer.
-2. **Snip from (overlay):** pick the sprite you want to take a piece from.
+1. **1 · Body** — pick the sprite (from your project) that forms the bottom.
+2. **2 · Part to graft on:**
+   - **Snip parts from** — choose *This project*, or a folder you loaded.
+   - **Load a 2nd sprite folder…** — dump another character's folder here; it
+     becomes a parts source and is auto-selected.
+   - **Snip from** — pick which sprite in that source to take a piece of.
 3. Toggle **Ellipse snip** (great for heads) or use a rectangle.
 4. Drag the **Snip region** sliders (X/Y/Width/Height, as fractions of the
-   overlay) to frame the part you want.
+   part) to frame the piece you want.
 5. Drag the **Placement** sliders (Pos X/Y on the body, Scale, Rotate, Opacity)
    to position it.
 6. Name it and **Save as new emote** — it's added to your project as a static

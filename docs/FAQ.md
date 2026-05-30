@@ -49,6 +49,19 @@ Yes — **Home → Import folder**. On desktop/mobile it's a directory picker; o
 website it's a folder upload. Sub-folder structure is preserved, and an existing
 `char.ini` in the folder is loaded as-is.
 
+**How do I put one character's head on another's body?**
+Open the **Mixer**. Your **body** is a sprite from the loaded project; for the
+head, click **Load a 2nd sprite folder…** and dump the other character's folder
+in — it's added as a "parts" source you can snip from, but stays out of your
+project and export. Then frame the snip, place it, and **Save as new emote**.
+See [MIXER.md](MIXER.md).
+
+**I recoloured/edited "All sprites" but nothing changed — why?**
+That was a bug with **WebP** sprites (the default format): the edit was written to
+a stray `.apng` while the original `.webp` was left in place. It's fixed — recolour
+and crop/trim now re-encode each sprite **in place** in its own format. Re-run the
+action.
+
 **How do I make a sprite move if I can't animate?**
 Open the **Animate** screen, click a preset (e.g. "Happy Bounce" or "Magical"),
 maybe drag the intensity, and **Save**. That's it — see

@@ -155,6 +155,20 @@ class AnimEngine {
     'emphasisPop': _emphasisPop,
     'breatheHeavy': _breatheHeavy,
     'sheen': _sheen,
+    'anticipate': _anticipate,
+    'springIn': _springIn,
+    'shiver': _shiver,
+    'gallop': _gallop,
+    'peek': _peek,
+    'dropIn': _dropIn,
+    'breatheSway': _breatheSway,
+    'pant': _pant,
+    'sparkle': _sparkle,
+    'chromaPulse': _chromaPulse,
+    'outlinePulse': _outlinePulse,
+    'auraGlow': _auraGlow,
+    'shadowDance': _shadowDance,
+    'focusPull': _focusPull,
   };
 
   static List<String> get recipeTypes => _registry.keys.toList()..sort();
@@ -638,5 +652,142 @@ class AnimEngine {
     return FrameSpec()
       ..colorOps.add(ColorOp('brightness',
           nums: <String, double>{'amount': 1 + r.n('intensity', 0.8) * g}));
+  }
+
+  // --- newer motion recipes ---
+
+  /// Wind back, then thrust forward — classic anticipation (one loop).
+  static FrameSpec _anticipate(double t, AnimRecipe r) {
+    final double i = r.n('intensity', 16);
+    final double x = t < 0.4 ? -i * (t / 0.4) : i * (1 - (t - 0.4) / 0.6);
+    return FrameSpec()..dx = x;
+  }
+
+  /// Damped springy scale jiggle that settles to rest.
+  static FrameSpec _springIn(double t, AnimRecipe r) {
+    final double amp = r.n('intensity', 30) / 100.0;
+    final double s = 1 + amp * math.exp(-5.0 * t) * math.sin(_tau(t, r.n('cycles', 2)));
+    return FrameSpec()..scale = s.clamp(0.1, 3).toDouble();
+  }
+
+  /// Tiny fast tremor with a hint of rotation (cold / scared / tense).
+  static FrameSpec _shiver(double t, AnimRecipe r) {
+    final double i = r.n('intensity', 2);
+    final double c = r.n('cycles', 24);
+    return FrameSpec()
+      ..dx = i * math.sin(_tau(t, c))
+      ..dy = i * 0.5 * math.sin(_tau(t, c * 1.3) + 0.7)
+      ..angle = i * 0.4 * math.sin(_tau(t, c * 0.9));
+  }
+
+  /// A galloping hop with a forward-back lean.
+  static FrameSpec _gallop(double t, AnimRecipe r) {
+    final double i = r.n('intensity', 8);
+    final double c = r.n('cycles', 2);
+    return FrameSpec()
+      ..dy = -i * math.sin(_tau(t, c)).abs()
+      ..angle = i * 0.5 * math.sin(_tau(t, c));
+  }
+
+  /// Slide in from a side, hold, then slide back out (`side` < 0 = from left).
+  static FrameSpec _peek(double t, AnimRecipe r) {
+    final double dist = r.n('intensity', 40);
+    final double side = r.n('side', -1) < 0 ? -1.0 : 1.0;
+    final double off = t < 0.25
+        ? (1 - t / 0.25)
+        : t > 0.75
+            ? (t - 0.75) / 0.25
+            : 0.0;
+    return FrameSpec()..dx = side * dist * off;
+  }
+
+  /// Fall in from above and settle with a small bounce (one loop).
+  static FrameSpec _dropIn(double t, AnimRecipe r) {
+    final double h = r.n('intensity', 40);
+    final double y = t < 0.6
+        ? -h * (1 - t / 0.6)
+        : -h * 0.12 * math.sin(math.pi * (t - 0.6) / 0.4) * (1 - (t - 0.6) / 0.4);
+    return FrameSpec()..dy = y;
+  }
+
+  /// Gentle idle: a slow breathe blended with a slow sway.
+  static FrameSpec _breatheSway(double t, AnimRecipe r) {
+    final double i = r.n('intensity', 3);
+    final double c = r.n('cycles', 1);
+    return FrameSpec()
+      ..scale = 1 + i / 100.0 * (0.5 + 0.5 * math.sin(_tau(t, c)))
+      ..angle = i * 0.8 * math.sin(_tau(t, c) + 0.5);
+  }
+
+  /// Fast, shallow panting (out-of-breath).
+  static FrameSpec _pant(double t, AnimRecipe r) {
+    final double i = r.n('intensity', 5);
+    final double c = r.n('cycles', 4);
+    return FrameSpec()
+      ..scaleY = 1 + i / 200.0 * (0.5 + 0.5 * math.sin(_tau(t, c)))
+      ..dy = i * 0.2 * math.sin(_tau(t, c));
+  }
+
+  /// Quick white twinkles (high-frequency soft flashes).
+  static FrameSpec _sparkle(double t, AnimRecipe r) {
+    final double s = math.pow(0.5 + 0.5 * math.sin(_tau(t, r.n('cycles', 8))), 8).toDouble();
+    return FrameSpec()
+      ..colorOps.add(ColorOp('brightness',
+          nums: <String, double>{'amount': 1 + r.n('intensity', 0.8) * s}));
+  }
+
+  /// Pulsing chromatic aberration (uses the `chromaShift` colour op).
+  static FrameSpec _chromaPulse(double t, AnimRecipe r) {
+    final double off =
+        (r.n('intensity', 4) * (0.5 + 0.5 * math.sin(_tau(t, r.n('cycles', 2))))).abs();
+    return FrameSpec()
+      ..colorOps.add(ColorOp('chromaShift',
+          nums: <String, double>{'offset': off.roundToDouble()}));
+  }
+
+  /// A coloured outline that pulses in thickness (uses the `outline` colour op).
+  static FrameSpec _outlinePulse(double t, AnimRecipe r) {
+    final double w = 1 + r.n('intensity', 3) * (0.5 + 0.5 * math.sin(_tau(t, r.n('cycles', 1))));
+    return FrameSpec()
+      ..colorOps.add(ColorOp('outline',
+          nums: <String, double>{'size': w.roundToDouble(), 'threshold': 128},
+          strs: <String, String>{'color': r.colors['color'] ?? '#FFFFFFFF'}));
+  }
+
+  /// A soft outer glow that breathes in and out (uses the `glow` colour op).
+  static FrameSpec _auraGlow(double t, AnimRecipe r) {
+    final double k = 0.5 + 0.5 * math.sin(_tau(t, r.n('cycles', 1)));
+    return FrameSpec()
+      ..colorOps.add(ColorOp('glow',
+          nums: <String, double>{
+            'radius': r.n('intensity', 6),
+            'strength': 0.4 + 0.8 * k,
+            'threshold': 16,
+          },
+          strs: <String, String>{'color': r.colors['color'] ?? '#FF8AD0FF'}));
+  }
+
+  /// A hop with a shifting drop shadow underneath (uses the `dropShadow` op).
+  static FrameSpec _shadowDance(double t, AnimRecipe r) {
+    final double phase = _tau(t, r.n('cycles', 1));
+    final double i = r.n('intensity', 6);
+    final double dy = -i * math.sin(phase).abs();
+    final double sx = 3 + i * 0.5 * math.sin(phase);
+    return FrameSpec()
+      ..dy = dy
+      ..colorOps.add(ColorOp('dropShadow', nums: <String, double>{
+        'dx': sx.roundToDouble(),
+        'dy': (6 - dy * 0.3).roundToDouble(),
+        'opacity': 0.45,
+        'threshold': 16,
+      }));
+  }
+
+  /// A subtle zoom with a sharpen pulse — like a rack focus (uses `sharpen`).
+  static FrameSpec _focusPull(double t, AnimRecipe r) {
+    final double k = 0.5 + 0.5 * math.sin(_tau(t, r.n('cycles', 1)));
+    return FrameSpec()
+      ..scale = 1 + r.n('intensity', 4) / 100.0 * k
+      ..colorOps.add(ColorOp('sharpen', nums: <String, double>{'amount': 0.4 + 1.2 * k}));
   }
 }

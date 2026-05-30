@@ -123,6 +123,44 @@ class PresetLibrary {
           ColorOp('chromaShift', nums: <String, double>{'offset': 4}),
           ColorOp('noise', nums: <String, double>{'amount': 14, 'mono': 0}),
         ], category: 'Stylize'),
+        OpPipeline('Outline', <ColorOp>[
+          ColorOp('outline', nums: <String, double>{'size': 2},
+              strs: <String, String>{'color': '#FF000000'}),
+        ], category: 'Effects'),
+        OpPipeline('White Outline', <ColorOp>[
+          ColorOp('outline', nums: <String, double>{'size': 3},
+              strs: <String, String>{'color': '#FFFFFFFF'}),
+        ], category: 'Effects'),
+        OpPipeline('Outer Glow', <ColorOp>[
+          ColorOp('glow', nums: <String, double>{'radius': 6, 'strength': 1.0},
+              strs: <String, String>{'color': '#FF8AD0FF'}),
+        ], category: 'Effects'),
+        OpPipeline('Drop Shadow', <ColorOp>[
+          ColorOp('dropShadow', nums: <String, double>{'dx': 4, 'dy': 4, 'opacity': 0.5},
+              strs: <String, String>{'color': '#FF000000'}),
+        ], category: 'Effects'),
+        OpPipeline('Sharpen', <ColorOp>[
+          ColorOp('sharpen', nums: <String, double>{'amount': 1.0}),
+        ], category: 'Effects'),
+        OpPipeline('Soft Blur', <ColorOp>[
+          ColorOp('blur', nums: <String, double>{'radius': 2}),
+        ], category: 'Effects'),
+        OpPipeline('Solarize', <ColorOp>[
+          ColorOp('solarize', nums: <String, double>{'threshold': 128}),
+        ], category: 'Stylize'),
+        OpPipeline('Dither', <ColorOp>[
+          ColorOp('dither', nums: <String, double>{'levels': 3}),
+        ], category: 'Stylize'),
+        OpPipeline('Cross Process', <ColorOp>[
+          ColorOp('crossProcess', nums: <String, double>{'strength': 0.9}),
+        ], category: 'Aesthetic'),
+        OpPipeline('Bleach Bypass', <ColorOp>[
+          ColorOp('bleachBypass', nums: <String, double>{'strength': 0.85}),
+        ], category: 'Aesthetic'),
+        OpPipeline('Sunbeam Wash', <ColorOp>[
+          ColorOp('gradientTint', nums: <String, double>{'angle': 60, 'strength': 0.4},
+              strs: <String, String>{'color0': '#FFFFE9A8', 'color1': '#FF5A78C8'}),
+        ], category: 'Aesthetic'),
       ];
 
   /// 24 evenly-spaced hue rotations.
@@ -327,6 +365,36 @@ class PresetLibrary {
     AnimPreset('Breathe + Glow', 'Idle',
         <AnimRecipe>[AnimRecipe('breatheGlow', p: <String, double>{'intensity': 3})],
         frames: 24, fps: 12),
+    AnimPreset('Spooky Aura', 'Flashy', <AnimRecipe>[
+      AnimRecipe('ghostFloat', p: <String, double>{'intensity': 4}),
+      AnimRecipe('auraGlow', p: <String, double>{'intensity': 7},
+          colors: <String, String>{'color': '#FFB58CFF'}),
+    ], frames: 24, fps: 14),
+    AnimPreset('Outline Pulse', 'Flashy',
+        <AnimRecipe>[AnimRecipe('outlinePulse', p: <String, double>{'intensity': 3},
+            colors: <String, String>{'color': '#FFFFE066'})],
+        frames: 18, fps: 14),
+    AnimPreset('Shiver', 'Emotion',
+        <AnimRecipe>[AnimRecipe('shiver', p: <String, double>{'intensity': 2, 'cycles': 24})],
+        frames: 14, fps: 24),
+    AnimPreset('Drop In', 'Transition',
+        <AnimRecipe>[AnimRecipe('dropIn', p: <String, double>{'intensity': 44}, ease: 'easeInQuad')],
+        frames: 16, fps: 20),
+    AnimPreset('Peek In', 'Transition',
+        <AnimRecipe>[AnimRecipe('peek', p: <String, double>{'intensity': 40})],
+        frames: 24, fps: 16),
+    AnimPreset('Gallop', 'Gesture',
+        <AnimRecipe>[AnimRecipe('gallop', p: <String, double>{'intensity': 8, 'cycles': 2})],
+        frames: 16, fps: 18),
+    AnimPreset('Sparkle', 'Flashy',
+        <AnimRecipe>[AnimRecipe('sparkle', p: <String, double>{'intensity': 0.9, 'cycles': 8})],
+        frames: 16, fps: 16),
+    AnimPreset('Spring In', 'Transition',
+        <AnimRecipe>[AnimRecipe('springIn', p: <String, double>{'intensity': 30, 'cycles': 2})],
+        frames: 18, fps: 18),
+    AnimPreset('Rack Focus', 'Idle',
+        <AnimRecipe>[AnimRecipe('focusPull', p: <String, double>{'intensity': 4})],
+        frames: 20, fps: 12),
   ];
 
   // ---- Emote name sets ------------------------------------------------------

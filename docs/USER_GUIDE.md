@@ -149,9 +149,12 @@ flattening his shading).
    - **Hue** (shift colours), **Saturation**, **Brightness**, **Contrast**.
 3. Tap **Preset** chips (there are hundreds — "Make it Pink", "Vaporwave",
    "CRT", "Sepia", "Teal & Orange", …) and **Gradient map** chips (Fire, Ice,
-   Rainbow, …). They **blend (stack)** on top of each other and your sliders, so
-   you can combine several — each one you add shows as a chip under "Blended"
-   with an ✕ to remove it.
+   Rainbow, …). New **Effects** presets add outlines and depth: "Outline",
+   "White Outline", "Outer Glow", "Drop Shadow", "Sharpen", "Soft Blur", plus
+   film looks like "Cross Process", "Bleach Bypass", "Solarize" and "Dither".
+   They all **blend (stack)** on top of each other and your sliders, so you can
+   combine several — each one you add shows as a chip under "Blended" with an ✕
+   to remove it.
 4. **Custom colour** — type a **hex** code right in the panel (e.g. `FF5577`), or
    tap the wheel icon to open the colour **wheel** (hue wheel + sliders + its own
    editable hex bar + HEX/RGB/HSV readouts). Then blend that exact colour in as
@@ -235,9 +238,20 @@ Crop and auto-trim apply the **same box to every frame and to an emote's
 ## 10. Mixer — snip & combine sprites
 
 The "frankensprite" tool: put one character's head on another's body, etc.
+Because that usually means **two different characters**, the Mixer expects **two
+separate sprite folders**:
 
-1. **Body (base)** — choose the sprite that forms the bottom.
-2. **Snip from (overlay)** — choose the sprite you'll take a piece from.
+- the **body** is a sprite from your **loaded project**;
+- the **part** you graft on can come from your project *or* from a **2nd folder
+  you load right here**.
+
+1. **1 · Body** — choose the sprite (from your project) that forms the bottom.
+2. **2 · Part to graft on:**
+   - **Snip parts from** — *This project*, or a folder you've loaded.
+   - **Load a 2nd sprite folder…** — dump another character's sprite folder in.
+     It's kept separate from your project and **never exported** — it's just a
+     palette of parts to snip from. (Remove it with the ✕.)
+   - **Snip from** — pick the sprite to take a piece of.
 3. Toggle **Ellipse snip** on for heads (off = rectangle).
 4. Drag the **Snip region** sliders (X / Y / Width / Height) to frame the part
    you want.

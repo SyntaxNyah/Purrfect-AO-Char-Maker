@@ -27,10 +27,10 @@ lib/
 
     imaging/                    ── the image & colour engine ──
       codecs.dart               decode anything; encode png/apng/gif
-      color_ops.dart            33 composable colour ops (ColorOp/OpPipeline)
+      color_ops.dart            43 composable colour ops (ColorOp/OpPipeline)
       region_edit.dart          masks + magic-wand + recolour/erase/fill + bg removal
       sprite_edit.dart          crop / auto-trim / background removal (frame-aware)
-      compositor.dart           snip + stack layers (frankensprite)
+      compositor.dart           snip + stack layers (frankensprite; 2-folder mixer UI)
       button_maker.dart         auto + composited button icons
       bulk_processor.dart       apply pipeline / convert across many files
       webp_codec.dart           WebP encode interface (lossy + lossless, animated)

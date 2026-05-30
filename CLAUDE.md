@@ -183,15 +183,19 @@ The central model.
 - `class OpPipeline(name,ops,{category,description})` — `.toJson/fromJson`.
 - `class ImageOps` — `static apply(image,op)`, `static applyAll(image,ops)`,
   `static register(id,fn)` (plugin hook), `registeredOps`.
-- Built-in op ids (33): hueShift, saturation, vibrance, brightness, contrast,
+- Built-in op ids (43): hueShift, saturation, vibrance, brightness, contrast,
   gamma, exposure, levels, invert, grayscale, sepia, temperature, tint,
   colorize, solidColor, gradientMap, duotone, replaceColor, selectiveHue,
   posterize, threshold, opacity, alphaThreshold, channelSwap, colorBalance,
   splitTone, selectiveSaturation, hsvAdjust, vignette, scanlines, noise,
-  chromaShift, pixelate. (Params documented in docs/COLOR_OPS.md.)
+  chromaShift, pixelate, solarize, gradientTint, dither, crossProcess,
+  bleachBypass, sharpen, blur, **outline**, **dropShadow**, **glow**. (Params
+  documented in docs/COLOR_OPS.md.)
 - Helpers: `parseHexColor(hex)`→ARGB int?, `formatHexColor(argb)`→'#aarrggbb'.
 - Implementation note: ops mutate `img.Image` frames in place; `_eachPixel`
-  skips alpha==0 pixels. Ops needing neighbours (chromaShift) clone first.
+  skips alpha==0 pixels. Ops needing neighbours (chromaShift, sharpen, blur)
+  clone first. **outline/dropShadow/glow are spatial** — they clone first AND
+  deliberately write into the transparent halo (they don't use `_eachPixel`).
 
 ### imaging/region_edit.dart  ← outfit/region editing
 - `class SelectionMask(w,h)` / `.full(w,h)` — `.get/.set`, `.invert`,
@@ -264,7 +268,7 @@ The central model.
   `render(base,recipes,{frames,fps,loop})`→AnimClip (global recipes sum; region
   recipes composite as layers), `renderSpec(base,specAt,{frames,fps})` (used by
   Timeline).
-- Built-in recipe ids (~74): sway, bob, bounce, float, breathe, shake, spin,
+- Built-in recipe ids (~88): sway, bob, bounce, float, breathe, shake, spin,
   tilt, wiggle, zoomPulse, jump, glow, flash, pulse, rainbow, tintPulse, fadeIn,
   fadeOut, throb, nod, headShake, swing, drift, orbit, heartbeat, strobe,
   flicker, neon, hologram, glitch, colorCycle, wave, pendulum, vibrate, pop,
@@ -272,7 +276,10 @@ The central model.
   jelly, tada, rollIn, rollOut, spiralIn, levitate, recoil, lunge, duck,
   sideStep, figure8, tiltShake, zoomBounce, fadeBlink, desaturatePulse,
   colorFlash, ghostFloat, rainbowGlow, matrixGlitch, emphasisPop, breatheHeavy,
-  sheen, … (discover at runtime via `AnimEngine.recipeTypes`).
+  sheen, anticipate, springIn, shiver, gallop, peek, dropIn, breatheSway, pant,
+  sparkle, chromaPulse, outlinePulse, auraGlow, shadowDance, focusPull, …
+  (discover at runtime via `AnimEngine.recipeTypes`). outlinePulse/auraGlow/
+  shadowDance animate the spatial outline/glow/dropShadow colour ops.
 
 ### animation/timeline.dart
 - `class Keyframe({time,dx,dy,scale,angle,opacity,hue,ease})` — `.toJson/fromJson`.
@@ -314,6 +321,16 @@ The central model.
   pipeline, apply/bulk, **bulkRename**, **crop/trim/bg via previewEdit/applyEdit**,
   animation render/save (WebP default), mixer save, export zip/ini. Read it
   before adding a screen.
+  - **Recolour/edit write back in place** via `_writeSpriteInPlace(rel,image)`:
+    re-encodes in the file's own format (WebP via the encoder, APNG/PNG/GIF
+    otherwise) and only changes the path/extension on a fallback. `applyPipeline`
+    and `applyEdit` both use it, then refresh `scan` from `_projectFiles()`. This
+    fixes the old bug where WebP sprites (the default!) were recoloured into a
+    phantom `.apng` while the original `.webp` — still referenced — was untouched.
+  - **Mixer parts sources**: `importMixParts(files,{label})` loads a SECOND folder
+    just to snip from (`mixSources`/`MixSource`, resolved via `relForMixBase`,
+    removed via `removeMixSource`). It's stashed under `_mixPrefix` in the
+    workspace and excluded from every project scan (`_projectFiles`) + the export.
 - `screens/` — home, editor, color_lab, animation_studio, button_studio, edit,
   mixer, bulk, plugins. `widgets/` — `CheckerImage`, `ZoomCanvas`.
   - `color_lab`: sliders + blendable presets/gradients + a **custom colour**
@@ -321,6 +338,9 @@ The central model.
     (`hexInputBar`, HEX/RGB/HSV labels); picks become `colorize`/`tint`/
     `solidColor`/`gradientMap` ops on the blend stack.
   - `edit`: crop / auto-trim / background removal (drives `SpriteEdit`).
+  - `mixer`: frankensprite. Body = a project sprite; the part to graft comes from
+    *This project* or a **2nd folder loaded in-screen** (`importMixParts` →
+    `mixSources`, kept out of the project/export). Source-tagged pickers + ✕.
 
 ---
 

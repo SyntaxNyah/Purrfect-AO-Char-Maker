@@ -16,16 +16,27 @@ A recipe is an `AnimRecipe(type, p: {...}, colors: {...}, ease: '...', region: .
 Common params: `intensity`, `cycles`. **Stack** several to combine them.
 
 ### Movement
-`sway`, `bob`, `bounce`, `float`, `breathe`, `shake`, `spin`, `tilt`, `wiggle`,
-`zoomPulse`, `jump`, `nod`, `headShake`, `swing`, `drift`, `orbit`, `heartbeat`
+`sway`, `bob`, `bounce`, `float`, `breathe`, `breatheSway`, `breatheHeavy`,
+`shake`, `shiver`, `spin`, `tilt`, `wiggle`, `zoomPulse`, `jump`, `gallop`,
+`pant`, `nod`, `headShake`, `swing`, `drift`, `orbit`, `heartbeat`, `pendulum`,
+`vibrate`, `pop`, `wobble`, `squashStretch`, `rubberBand`, `jelly`, `tada`,
+`recoil`, `lunge`, `duck`, `sideStep`, `figure8`, `levitate`
+
+### Intros / transitions
+`fadeIn`, `fadeOut`, `slideIn`, `slideOut`, `rollIn`, `rollOut`, `spiralIn`,
+`dropIn`, `peek`, `springIn`, `anticipate`
 
 ### Visual effects
 `glow` (color), `flash`, `pulse`, `rainbow`, `tintPulse` (color), `neon`
 (color), `hologram` (color), `glitch`, `colorCycle`, `strobe`, `flicker`,
-`fadeIn`, `fadeOut`, `throb`
+`fadeBlink`, `desaturatePulse`, `colorFlash` (color), `ghostFloat`,
+`rainbowGlow`, `matrixGlitch`, `sheen`, `sparkle`, `throb`, `chromaPulse`,
+`focusPull`, **`outlinePulse`** (color), **`auraGlow`** (color),
+**`shadowDance`**
 
-> `none` is the identity recipe. Recipe ids are discoverable at runtime via
-> `AnimEngine.recipeTypes`.
+> The bold effects animate the spatial colour ops (`outline` / `glow` /
+> `dropShadow`); see [COLOR_OPS.md](COLOR_OPS.md). `none` is the identity recipe,
+> and the full list is discoverable at runtime via `AnimEngine.recipeTypes`.
 
 ### Stacking example — "float + glow + rainbow"
 ```dart

@@ -23,21 +23,24 @@ Legend: ✅ done · 🟡 partial · ⬜ planned
 - ✅ ~25 composable colour ops + pipeline
 - ✅ Hundreds of presets / palettes / gradients
 - ✅ Region/outfit editor (magic wand, masks, feather, recolour/erase/fill)
-- ✅ 33 colour ops incl. split-tone, vignette, scanlines, grain, chroma shift, pixelate
+- ✅ 43 colour ops incl. split-tone, vignette, scanlines, grain, chroma shift,
+  pixelate, solarize, dither, cross-process, bleach-bypass, sharpen, blur
 - ✅ Custom colour wheel/picker → recolour / tint / solid / gradient (blendable)
 - ✅ Crop, auto-trim & background removal (frame-aware; uniform across (a)/(b))
-- ✅ Sprite compositor / mixer (snip + stack layers; head-on-body)
-- ✅ Bulk recolour, convert, crop/trim & rename
+- ✅ Sprite compositor / mixer (snip + stack layers; head-on-body) with a
+  two-folder workflow (load a 2nd character's folder to graft parts from)
+- ✅ Bulk recolour, convert, crop/trim & rename (recolour/edit re-encode WebP
+  sprites in place — no more phantom `.apng` that left the original untouched)
 - ✅ WebP encode: web (canvas) + native (libwebp via FFI), bundled in CI builds
 - ✅ Animated WebP export (native via libwebpmux); **WebP is the default output**,
   auto-falling back to APNG where WebP isn't available (web build, or native
   without libwebpmux)
 - ⬜ GPU fragment-shader real-time path (CPU preview works now)
 - ⬜ Palette-swap (exact indexed remap) op
-- ⬜ Outline / drop-shadow / glow image ops (color ops exist; spatial ones next)
+- ✅ Outline / drop-shadow / glow image ops (spatial ops that draw into the halo)
 
 ## Animation
-- ✅ ~74 stackable recipes with easing
+- ✅ ~88 stackable recipes with easing (incl. outline/glow/shadow effect recipes)
 - ✅ Region-targeted animation (wave a hand, spin a limb)
 - ✅ Manual keyframe timeline
 - ✅ Lip-sync (two-state, multi-viseme, rough auto)

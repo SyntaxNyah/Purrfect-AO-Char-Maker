@@ -38,6 +38,9 @@ Runs natively on **Windows, Linux, macOS, Android, iOS**, and as a **website**
 - **Custom colour wheel** — pick *any* colour (wheel / area / sliders / hex) and
   blend it in as a recolour, tint, solid fill, or gradient — stack as many as
   you like on top of the presets.
+- **Effects** — add an **outline**, **outer glow** or **drop shadow** around a
+  sprite, **sharpen**/**blur**, or film looks (cross-process, bleach-bypass,
+  solarize, dither) — all blendable like any other preset.
 - **Region / outfit editing** — magic-wand colour selection, rectangle/ellipse
   masks, feathering, grow/shrink; then recolour just the clothes, erase a
   region, or paint a fill.
@@ -46,7 +49,8 @@ Runs natively on **Windows, Linux, macOS, Android, iOS**, and as a **website**
   flood-filling from the corners.
 - **Sprite mixer ("frankensprite")** — snip a region from one sprite (e.g. a
   head) and drop it onto another (a body), with position/scale/rotate/opacity,
-  then save it as a new emote.
+  then save it as a new emote. Combine **two characters** by loading a **second
+  sprite folder** right in the Mixer (kept separate from your project + export).
 - **Bulk operations** — recolour, convert, **crop/trim**, or **rename** *every*
   sprite/emote at once (find/replace, prefix/suffix, numbering, case).
 - **Format conversion** — import webp/apng/gif/png (and jpg/bmp/tga/tiff/…),
@@ -56,13 +60,13 @@ Runs natively on **Windows, Linux, macOS, Android, iOS**, and as a **website**
 ### Animate everything (so anyone can)
 - **One-click animation recipes** — sway, bob, bounce, breathe, shake, spin,
   nod, head-shake, swing, drift, orbit, heartbeat, glow, flash, rainbow, pulse,
-  neon, hologram, glitch, fade, throb… **stack them** ("move + glow + rainbow")
-  with **easing curves**.
+  neon, hologram, glitch, fade, throb, sparkle, drop-in, spring-in, outline-pulse,
+  aura-glow… **stack them** ("move + glow + rainbow") with **easing curves**.
 - **Animate just a part** — pick a region to wave a hand or spin a limb.
 - **Lip-sync** — give it a mouth-closed + mouth-open sprite (or several visemes)
   and it builds the talking `(b)` animation; a rough one-sprite auto mode exists
   too.
-- **~74 stackable effects** and a **custom keyframe timeline** for full control.
+- **~88 stackable effects** and a **custom keyframe timeline** for full control.
 - Exports as **animated WebP** by default (bundled libwebp on desktop/mobile;
   browser-native on web), auto-falling back to APNG where WebP isn't available.
 

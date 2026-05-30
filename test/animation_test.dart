@@ -42,6 +42,20 @@ void main() {
     expect(AnimEngine.recipeTypes, contains('heartbeat'));
   });
 
+  test('newer recipes (incl. spatial colour ops) render cleanly', () {
+    for (final String id in <String>[
+      'anticipate', 'springIn', 'shiver', 'gallop', 'peek', 'dropIn',
+      'breatheSway', 'pant', 'sparkle', 'chromaPulse', 'outlinePulse',
+      'auraGlow', 'shadowDance', 'focusPull',
+    ]) {
+      expect(AnimEngine.recipeTypes, contains(id), reason: 'missing $id');
+      final AnimClip clip =
+          AnimEngine.render(_base(), <AnimRecipe>[AnimRecipe(id)], frames: 3);
+      expect(clip.frames.length, 3, reason: '$id did not render');
+      expect(clip.frames.first.image.width, 8);
+    }
+  });
+
   test('AnimRecipe JSON round-trips including region and easing', () {
     final AnimRecipe r = AnimRecipe('sway',
         p: <String, double>{'intensity': 7}, ease: 'easeOutBack');

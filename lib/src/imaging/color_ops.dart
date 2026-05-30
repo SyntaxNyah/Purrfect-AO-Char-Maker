@@ -122,6 +122,16 @@ class ImageOps {
     'noise': _noise,
     'chromaShift': _chromaShift,
     'pixelate': _pixelate,
+    'solarize': _solarize,
+    'gradientTint': _gradientTint,
+    'dither': _dither,
+    'crossProcess': _crossProcess,
+    'bleachBypass': _bleachBypass,
+    'sharpen': _sharpen,
+    'blur': _blur,
+    'outline': _outline,
+    'dropShadow': _dropShadow,
+    'glow': _glow,
   };
 
   /// All op ids currently registered (built-ins + any plugin code ops).
@@ -614,6 +624,247 @@ class ImageOps {
             f.setPixelRgba(x, y, r, g, b, a);
           }
         }
+      }
+    }
+  }
+
+  /// Invert only channels brighter than [threshold] (classic darkroom look).
+  static void _solarize(img.Image f, ColorOp op) {
+    final int t = op.n('threshold', 128).round();
+    _eachPixel(f, (int x, int y, _Rgba px) {
+      if (px.r > t) px.r = 255 - px.r;
+      if (px.g > t) px.g = 255 - px.g;
+      if (px.b > t) px.b = 255 - px.b;
+    });
+  }
+
+  /// Blend a directional two-colour gradient over the sprite. [angle] in degrees
+  /// (0 = left→right), [strength] 0..1, [color0]/[color1] the endpoints.
+  static void _gradientTint(img.Image f, ColorOp op) {
+    final int c0 = op.color('color0', 0xFF000000);
+    final int c1 = op.color('color1', 0xFFFFFFFF);
+    final double ang = op.n('angle') * math.pi / 180.0;
+    final double strength = op.n('strength', 0.5).clamp(0.0, 1.0);
+    final double dx = math.cos(ang), dy = math.sin(ang);
+    final double w = f.width.toDouble(), h = f.height.toDouble();
+    final List<double> projs = <double>[0, w * dx, h * dy, w * dx + h * dy];
+    double mn = projs[0], mx = projs[0];
+    for (final double v in projs) {
+      if (v < mn) mn = v;
+      if (v > mx) mx = v;
+    }
+    final double range = math.max(1e-6, mx - mn);
+    final int r0 = (c0 >> 16) & 0xFF, g0 = (c0 >> 8) & 0xFF, b0 = c0 & 0xFF;
+    final int r1 = (c1 >> 16) & 0xFF, g1 = (c1 >> 8) & 0xFF, b1 = c1 & 0xFF;
+    _eachPixel(f, (int x, int y, _Rgba px) {
+      final double tt = ((x * dx + y * dy) - mn) / range;
+      final int tr = (r0 + (r1 - r0) * tt).round();
+      final int tg = (g0 + (g1 - g0) * tt).round();
+      final int tb = (b0 + (b1 - b0) * tt).round();
+      px.r = (px.r + (tr - px.r) * strength).round().clamp(0, 255);
+      px.g = (px.g + (tg - px.g) * strength).round().clamp(0, 255);
+      px.b = (px.b + (tb - px.b) * strength).round().clamp(0, 255);
+    });
+  }
+
+  static const List<List<int>> _bayer4 = <List<int>>[
+    <int>[0, 8, 2, 10],
+    <int>[12, 4, 14, 6],
+    <int>[3, 11, 1, 9],
+    <int>[15, 7, 13, 5],
+  ];
+
+  /// Ordered (Bayer 4×4) dithering down to [levels] tones per channel — a retro,
+  /// low-bit look that keeps gradients readable.
+  static void _dither(img.Image f, ColorOp op) {
+    final int levels = math.max(2, op.n('levels', 3).round());
+    final double step = 255.0 / (levels - 1);
+    _eachPixel(f, (int x, int y, _Rgba px) {
+      final double thr = ((_bayer4[y % 4][x % 4] + 0.5) / 16.0 - 0.5) * step;
+      int q(int v) => (((v + thr) / step).round() * step).round().clamp(0, 255);
+      px.r = q(px.r);
+      px.g = q(px.g);
+      px.b = q(px.b);
+    });
+  }
+
+  /// Cross-processing: filmic per-channel curves (lifted greens, cool shadows,
+  /// warm highlights). [strength] 0..1.
+  static void _crossProcess(img.Image f, ColorOp op) {
+    final double amt = op.n('strength', 1).clamp(0.0, 1.0);
+    _eachPixel(f, (int x, int y, _Rgba px) {
+      final double r = math.pow(px.r / 255.0, 1.0 / 1.2).toDouble();
+      final double g = (px.g / 255.0) * 1.05;
+      final double b = (px.b / 255.0) * 0.9 + 0.05;
+      final int nr = (r * 255).round().clamp(0, 255);
+      final int ng = (g * 255).round().clamp(0, 255);
+      final int nb = (b * 255).round().clamp(0, 255);
+      px.r = (px.r + (nr - px.r) * amt).round();
+      px.g = (px.g + (ng - px.g) * amt).round();
+      px.b = (px.b + (nb - px.b) * amt).round();
+    });
+  }
+
+  /// Bleach-bypass: overlay the luminance back over the image for the silvery,
+  /// high-contrast, desaturated cinema look. [strength] 0..1.
+  static void _bleachBypass(img.Image f, ColorOp op) {
+    final double amt = op.n('strength', 1).clamp(0.0, 1.0);
+    _eachPixel(f, (int x, int y, _Rgba px) {
+      final int l = _luma(px);
+      int overlay(int base) => base < 128
+          ? (2 * base * l / 255).round()
+          : (255 - 2 * (255 - base) * (255 - l) / 255).round();
+      px.r = (px.r + (overlay(px.r) - px.r) * amt).round().clamp(0, 255);
+      px.g = (px.g + (overlay(px.g) - px.g) * amt).round().clamp(0, 255);
+      px.b = (px.b + (overlay(px.b) - px.b) * amt).round().clamp(0, 255);
+    });
+  }
+
+  /// 3×3 unsharp-mask sharpen. [amount] 0..3.
+  static void _sharpen(img.Image f, ColorOp op) {
+    final double amt = op.n('amount', 1).clamp(0.0, 3.0);
+    if (amt <= 0) return;
+    final img.Image src = f.clone();
+    int sample(int xx, int yy, int shift) {
+      final int cx = xx.clamp(0, f.width - 1), cy = yy.clamp(0, f.height - 1);
+      final img.Pixel p = src.getPixel(cx, cy);
+      return shift == 16 ? p.r.toInt() : (shift == 8 ? p.g.toInt() : p.b.toInt());
+    }
+    for (int y = 0; y < f.height; y++) {
+      for (int x = 0; x < f.width; x++) {
+        final img.Pixel c = src.getPixel(x, y);
+        if (c.a == 0) continue;
+        int conv(int shift) {
+          final double v = sample(x, y, shift) * (1 + 4 * amt) -
+              amt *
+                  (sample(x - 1, y, shift) +
+                      sample(x + 1, y, shift) +
+                      sample(x, y - 1, shift) +
+                      sample(x, y + 1, shift));
+          return v.round().clamp(0, 255);
+        }
+        f.setPixelRgba(x, y, conv(16), conv(8), conv(0), c.a.toInt());
+      }
+    }
+  }
+
+  /// Alpha-weighted box blur of [radius] px (softens without dark fringes).
+  static void _blur(img.Image f, ColorOp op) {
+    final int radius = math.max(1, op.n('radius', 2).round());
+    final img.Image src = f.clone();
+    for (int y = 0; y < f.height; y++) {
+      for (int x = 0; x < f.width; x++) {
+        double sr = 0, sg = 0, sb = 0, sa = 0;
+        int cells = 0;
+        for (int dy = -radius; dy <= radius; dy++) {
+          for (int dx = -radius; dx <= radius; dx++) {
+            final int xx = x + dx, yy = y + dy;
+            if (xx < 0 || yy < 0 || xx >= f.width || yy >= f.height) continue;
+            final img.Pixel p = src.getPixel(xx, yy);
+            final double a = p.a.toDouble();
+            sr += p.r * a;
+            sg += p.g * a;
+            sb += p.b * a;
+            sa += a;
+            cells++;
+          }
+        }
+        final int na = cells == 0 ? 0 : (sa / cells).round().clamp(0, 255);
+        if (sa > 0) {
+          f.setPixelRgba(x, y, (sr / sa).round().clamp(0, 255),
+              (sg / sa).round().clamp(0, 255), (sb / sa).round().clamp(0, 255), na);
+        } else {
+          f.setPixelRgba(x, y, 0, 0, 0, 0);
+        }
+      }
+    }
+  }
+
+  /// Draw a solid [color] outline of [size] px around the sprite's silhouette
+  /// (fills the transparent halo touching pixels with alpha ≥ [threshold]).
+  static void _outline(img.Image f, ColorOp op) {
+    final int size = math.max(1, op.n('size', 2).round());
+    final int c = op.color('color', 0xFF000000);
+    final int at = op.n('threshold', 128).round();
+    final int cr = (c >> 16) & 0xFF, cg = (c >> 8) & 0xFF, cb = c & 0xFF, ca = (c >> 24) & 0xFF;
+    final img.Image src = f.clone();
+    final int r2 = size * size;
+    for (int y = 0; y < f.height; y++) {
+      for (int x = 0; x < f.width; x++) {
+        if (src.getPixel(x, y).a >= at) continue; // keep existing solid pixels
+        bool near = false;
+        for (int dy = -size; dy <= size && !near; dy++) {
+          for (int dx = -size; dx <= size; dx++) {
+            if (dx * dx + dy * dy > r2) continue;
+            final int xx = x + dx, yy = y + dy;
+            if (xx < 0 || yy < 0 || xx >= f.width || yy >= f.height) continue;
+            if (src.getPixel(xx, yy).a >= at) {
+              near = true;
+              break;
+            }
+          }
+        }
+        if (near) f.setPixelRgba(x, y, cr, cg, cb, ca);
+      }
+    }
+  }
+
+  /// Cast a soft drop shadow behind the sprite, offset by [dx]/[dy] px.
+  static void _dropShadow(img.Image f, ColorOp op) {
+    final int dx = op.n('dx', 3).round();
+    final int dy = op.n('dy', 3).round();
+    final int c = op.color('color', 0xFF000000);
+    final double opacity = op.n('opacity', 0.5).clamp(0.0, 1.0);
+    final int at = op.n('threshold', 16).round();
+    final int sr = (c >> 16) & 0xFF, sg = (c >> 8) & 0xFF, sb = c & 0xFF;
+    final img.Image src = f.clone();
+    for (int y = 0; y < f.height; y++) {
+      for (int x = 0; x < f.width; x++) {
+        final img.Pixel cur = src.getPixel(x, y);
+        if (cur.a >= at) continue; // sprite stays on top
+        final int fx = x - dx, fy = y - dy;
+        if (fx < 0 || fy < 0 || fx >= f.width || fy >= f.height) continue;
+        final int srcA = src.getPixel(fx, fy).a.toInt();
+        if (srcA < at) continue;
+        final int sa = (srcA * opacity).round().clamp(0, 255);
+        final int curA = cur.a.toInt();
+        final int outA = (sa + curA * (255 - sa) ~/ 255).clamp(0, 255);
+        f.setPixelRgba(x, y, sr, sg, sb, outA);
+      }
+    }
+  }
+
+  /// Soft outer glow: a coloured halo around the silhouette fading over
+  /// [radius] px. [strength] scales the halo's opacity.
+  static void _glow(img.Image f, ColorOp op) {
+    final int radius = math.max(1, op.n('radius', 4).round());
+    final int c = op.color('color', 0xFFFFFFAA);
+    final double strength = op.n('strength', 1).clamp(0.0, 2.0);
+    final int at = op.n('threshold', 16).round();
+    final int gr = (c >> 16) & 0xFF, gg = (c >> 8) & 0xFF, gb = c & 0xFF;
+    final img.Image src = f.clone();
+    for (int y = 0; y < f.height; y++) {
+      for (int x = 0; x < f.width; x++) {
+        final img.Pixel cur = src.getPixel(x, y);
+        if (cur.a >= at) continue;
+        double best = double.infinity;
+        for (int dy = -radius; dy <= radius; dy++) {
+          for (int dx = -radius; dx <= radius; dx++) {
+            final int xx = x + dx, yy = y + dy;
+            if (xx < 0 || yy < 0 || xx >= f.width || yy >= f.height) continue;
+            if (src.getPixel(xx, yy).a >= at) {
+              final double d = math.sqrt((dx * dx + dy * dy).toDouble());
+              if (d < best) best = d;
+            }
+          }
+        }
+        if (best == double.infinity) continue;
+        final double falloff = (1 - best / radius).clamp(0.0, 1.0);
+        final int ga = (255 * falloff * strength).round().clamp(0, 255);
+        if (ga <= 0) continue;
+        final int curA = cur.a.toInt();
+        final int outA = (ga + curA * (255 - ga) ~/ 255).clamp(0, 255);
+        f.setPixelRgba(x, y, gr, gg, gb, outA);
       }
     }
   }
