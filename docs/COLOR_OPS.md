@@ -94,7 +94,7 @@ A black outline + soft cyan glow (stack them — outline first):
 
 ## Using ops in code
 ```dart
-import 'package:purrfect/src/imaging/color_ops.dart';
+import 'package:pinsel/src/imaging/color_ops.dart';
 
 ImageOps.apply(image, ColorOp('hueShift', nums: {'degrees': 120}));
 ImageOps.applyAll(image, [
@@ -107,7 +107,7 @@ ImageOps.applyAll(image, [
 To affect only part of the image (e.g. the clothes), build a `SelectionMask`
 and apply ops through it:
 ```dart
-import 'package:purrfect/src/imaging/region_edit.dart';
+import 'package:pinsel/src/imaging/region_edit.dart';
 
 final mask = RegionEditor.selectByColor(image, x, y, tolerance: 48); // magic wand
 final soft = RegionEditor.feather(mask, radius: 2);

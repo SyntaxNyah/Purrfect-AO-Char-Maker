@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:purrfect/src/core/ao_ini.dart';
+import 'package:pinsel/src/core/ao_ini.dart';
 
 void main() {
   group('IniDocument', () {

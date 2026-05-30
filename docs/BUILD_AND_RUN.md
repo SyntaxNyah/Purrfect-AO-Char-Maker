@@ -1,6 +1,6 @@
 # Build & Run
 
-Purrfect is a Flutter app, so one codebase targets Windows, Linux, macOS,
+Pinsel is a Flutter app, so one codebase targets Windows, Linux, macOS,
 Android, iOS and the web.
 
 ## Prerequisites
@@ -12,7 +12,7 @@ The platform project folders (`android/`, `ios/`, `linux/`, `macos/`,
 `windows/`, `web/`) are **not** committed — generate them once:
 
 ```bash
-cd Purrfect-AO-Char-Maker
+cd Pinsel-AO-Char-Maker
 flutter create .          # generates the platform folders, keeps lib/ etc.
 flutter pub get
 ```
@@ -66,7 +66,7 @@ the library isn't found, WebP export reports it and other formats still work.
 See [PLUGINS.md](PLUGINS.md#native-libwebp) to install/bundle it.
 
 ## Mobile file access
-iOS and Android sandbox the filesystem. Purrfect imports images (or a whole
+iOS and Android sandbox the filesystem. Pinsel imports images (or a whole
 **folder**) through the system picker and exports a `.zip`, which works within
 the sandbox everywhere. In-place editing of an existing AO `characters/` folder
 on mobile (via the Storage Access Framework) is on the roadmap.

@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
-import 'package:purrfect/src/imaging/color_ops.dart';
+import 'package:pinsel/src/imaging/color_ops.dart';
 
 img.Image _solid(int r, int g, int b, int a) {
   final img.Image im = img.Image(width: 2, height: 2, numChannels: 4);

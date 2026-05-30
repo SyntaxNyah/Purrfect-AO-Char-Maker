@@ -1,4 +1,4 @@
-# 🐾 Purrfect — User Guide
+# 🐾 Pinsel — User Guide
 
 A friendly, click-by-click guide to **every feature**. No coding needed.
 
@@ -29,7 +29,7 @@ If you just want to try it with nothing installed, use the **website build** (se
 ## 1. The 60-second version
 1. **Home → Import sprite files** (or **Import folder** on desktop) and pick your
    images.
-2. Purrfect instantly builds a character: it names your emotes, writes the
+2. Pinsel instantly builds a character: it names your emotes, writes the
    `char.ini`, and gets everything ready.
 3. (Optional) Tweak emotes, recolour, or animate using the tabs on the left.
 4. **Home → Export .zip**.
@@ -45,11 +45,11 @@ If you just want to try it with nothing installed, use the **website build** (se
   - `name` (no prefix) = a **static** (non-animated) sprite
 - **Preanimation** — a one-time animation that plays *before* talking (e.g. a
   desk slam). `-` means "none".
-- **char.ini** — the text file that tells AO about your character. Purrfect
+- **char.ini** — the text file that tells AO about your character. Pinsel
   writes it for you.
 - **Button** — the little icon for each emote in AO's emote picker.
 
-You don't have to memorise these — Purrfect figures them out from your file
+You don't have to memorise these — Pinsel figures them out from your file
 names.
 
 ---
@@ -84,7 +84,7 @@ count. A spinner there means it's working.
   bmp, …). Works everywhere, including the website.
 - **Import folder** — pick a whole folder (recursively); sub-folder structure is
   kept. Works on **every** platform, including the website (it uses a folder
-  upload there). If the folder already has a `char.ini`, Purrfect loads it as-is
+  upload there). If the folder already has a `char.ini`, Pinsel loads it as-is
   (nothing is lost); otherwise it auto-builds one.
 
 The moment you import, the status bar tells you what happened (e.g. *"Auto-built
@@ -175,8 +175,14 @@ For recolouring **just part** of a sprite (only the clothes/hair), see
 
 ## 7. Animate — make sprites move
 
-Anyone can animate here — pick an effect, watch it loop, save. AO sprites are
-just animated images, so the result works natively.
+Anyone can animate here. AO sprites are just animated images, so the result
+works natively. The **Animate** tab has two modes (toggle at the top):
+
+- **Effects** — one-click procedural motion/effects (below).
+- **Frames** — classic **frame-by-frame**: pick existing sprites *as frames* and
+  stitch them into one animation (jump to [Frame-by-frame](#7a-frame-by-frame)).
+
+### Effects mode
 
 1. Select an emote (Emotes tab).
 2. In **Animate**, either:
@@ -195,6 +201,27 @@ just animated images, so the result works natively.
    - the **moon icon** saves it as the **(a) idle** animation.
    - It's added to your project *and* downloaded. WebP is the default; it
      automatically falls back to APNG if your platform can't make WebP.
+
+<a name="7a-frame-by-frame"></a>
+### Frames mode (frame-by-frame)
+
+Already have the frames drawn? Switch **Animate → Frames** and assemble them:
+
+1. **Add frames** — tap sprites from the list at the bottom; each tap appends it
+   to the **Sequence**. Tap the same one again (or the **copy** icon) to hold it
+   for longer.
+2. **Reorder** — use the ▲ / ▼ on each row; **✕** removes it; **Clear** empties
+   the list.
+3. **Options:**
+   - **Speed (fps)** — how fast the frames play.
+   - **Reverse** — play the sequence backwards.
+   - **Ping-pong** — play forwards then backwards (a smooth boomerang loop).
+   - **Align** — frames of different sizes are padded onto a shared canvas;
+     choose **Bottom** (default, sprites stand on the floor), **Center** or
+     **Top**.
+4. Watch it loop in the preview, name it, and **Save as (b) talk** (or the moon
+   icon for **(a) idle**). It's added to your project *and* downloaded as
+   **animated WebP** (APNG fallback). You need **at least 2 frames** to save.
 
 **Move just a hand/limb, lip-sync, or hand-author keyframes** are supported too —
 see [ANIMATION.md](ANIMATION.md) (regions, `LipSync`, the keyframe `Timeline`).
@@ -252,15 +279,22 @@ separate sprite folders**:
      It's kept separate from your project and **never exported** — it's just a
      palette of parts to snip from. (Remove it with the ✕.)
    - **Snip from** — pick the sprite to take a piece of.
-3. Toggle **Ellipse snip** on for heads (off = rectangle).
-4. Drag the **Snip region** sliders (X / Y / Width / Height) to frame the part
-   you want.
-5. Drag the **Placement** sliders (Pos X / Y, Scale, Rotate, Opacity) to drop it
-   onto the body.
-6. Type a **New sprite name** and click **Save as new emote**.
+3. **Snip region (crop the part)** — toggle **Ellipse snip** for heads (off =
+   rectangle), drag **X / Y / Width / Height** to frame it, then optionally
+   **Flip H/V** or add **Feather** to soften the cut edge.
+4. **Recolour the part** — **Hue / Saturation / Brightness** retint just the
+   snipped piece so it matches the body (no need to bounce to the Colour Lab).
+5. **Placement** — **Pos X / Y, Scale, Rotate, Opacity** to drop it onto the
+   body; **Center** snaps it to the middle.
+6. **Crop output** — trim **Left / Top / Right / Bottom** off the final image.
+7. Type a **New sprite name** and click **Save as new emote**. **Reset** clears
+   everything.
 
-Tip: recolour the snipped piece first (Colour Lab) so it matches the body, then
-animate the result in the Animate tab — a mixed sprite is just a normal sprite.
+The live preview is smooth because it's **debounced and downscaled** — only
+**Save** renders at full resolution.
+
+Tip: animate the result in the Animate tab — a mixed sprite is just a normal
+sprite.
 
 ---
 
@@ -321,25 +355,48 @@ a talk effect (save as **(b)**) → Export.
 Import the folder → Bulk → format **WebP** → optionally **Delete originals** →
 **Convert ALL** → Export.
 
-**Frankensprite**
-Mixer → pick body + overlay → snip the head (ellipse) → place → Save as new
-emote → Export.
+**Frankensprite (two characters)**
+Mixer → pick the **body** from your project → **Load a 2nd sprite folder** →
+**Snip from** the other character → frame the head (ellipse) → recolour/feather
+to match → place → **Save as new emote** → Export.
 
 ---
 
-## 14. Using your character in AO
+## 14. Keyboard shortcuts & the toolbar
+
+Every screen has a slim **toolbar** at the top: **undo / redo** buttons (also
+import a folder, export `.zip`, export `char.ini`, and a ⌨ button that lists the
+shortcuts). The same actions have keys (Control on Windows/Linux, ⌘ on macOS):
+
+| Shortcut | Action |
+|----------|--------|
+| `Ctrl/⌘ + Z` | Undo |
+| `Ctrl/⌘ + Y` / `Ctrl/⌘ + Shift + Z` | Redo |
+| `Ctrl/⌘ + O` | Import a folder |
+| `Ctrl/⌘ + S` | Export `.zip` |
+| `Ctrl/⌘ + E` | Export `char.ini` |
+| `Ctrl/⌘ + N` | Add an emote |
+| `Ctrl/⌘ + ↑ / ↓` | Previous / next emote |
+| `Ctrl/⌘ + 1 … 9` | Jump to a screen |
+| `F1` | Show the cheat-sheet |
+
+Full reference: [SHORTCUTS.md](SHORTCUTS.md).
+
+---
+
+## 15. Using your character in AO
 1. **Export .zip** from Home (or Buttons).
 2. Unzip it into your AO install's `base/characters/` folder (so you get
    `base/characters/<YourName>/char.ini`).
 3. Launch AO, pick the character. (For webAO, host the files where your server
    expects them.)
 
-Purrfect's output matches what the AO2 client and webAO read, including buttons,
+Pinsel's output matches what the AO2 client and webAO read, including buttons,
 sounds, preanimations, and frame effects.
 
 ---
 
-## 15. Tips & troubleshooting
+## 16. Tips & troubleshooting
 - **A tab says "No project yet."** Import sprites on **Home** first.
 - **"No sprite file found for X"** in Validation — the emote's **Sprite** name
   doesn't match a file. Fix the name in the Emotes tab, or add the file.

@@ -166,14 +166,24 @@ class ImageOps {
 
   static void _eachPixel(
       img.Image f, void Function(int x, int y, _Rgba px) body) {
-    for (int y = 0; y < f.height; y++) {
-      for (int x = 0; x < f.width; x++) {
-        final img.Pixel p = f.getPixel(x, y);
-        final _Rgba px = _Rgba(p.r.toInt(), p.g.toInt(), p.b.toInt(), p.a.toInt());
-        if (px.a == 0) continue;
-        body(x, y, px);
-        f.setPixelRgba(x, y, px.r, px.g, px.b, px.a);
-      }
+    // Hot path. Iterate the frame's pixel cursor **sequentially** (no per-pixel
+    // `getPixel(x,y)` random access) and reuse one `_Rgba` instead of allocating
+    // one per pixel — this is the single biggest speed-up for recolour, bulk
+    // ops and animation (every op funnels through here).
+    final _Rgba px = _Rgba(0, 0, 0, 0);
+    for (final img.Pixel p in f) {
+      final int a = p.a.toInt();
+      if (a == 0) continue; // never touch fully transparent pixels
+      px.r = p.r.toInt();
+      px.g = p.g.toInt();
+      px.b = p.b.toInt();
+      px.a = a;
+      body(p.x, p.y, px);
+      p
+        ..r = px.r
+        ..g = px.g
+        ..b = px.b
+        ..a = px.a;
     }
   }
 

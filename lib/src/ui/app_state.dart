@@ -82,6 +82,9 @@ class AppState extends ChangeNotifier {
 
   bool get hasProject => character != null;
 
+  bool get canUndo => history.canUndo;
+  bool get canRedo => history.canRedo;
+
   List<LintIssue> get issues => character == null
       ? const <LintIssue>[]
       : CharacterValidator.validate(character!, scan: scan);
@@ -460,6 +463,8 @@ class AppState extends ChangeNotifier {
         await _writeSpriteInPlace(e.key, out);
         edited++;
       }
+      // Keep the UI responsive between (heavy) sprite groups.
+      await Future<void>.delayed(Duration.zero);
     }
     _decodeCache.clear();
     scan = _scanner.fromPaths(await _projectFiles());
@@ -565,6 +570,9 @@ class AppState extends ChangeNotifier {
         }
       }
       _progress(++done, targets.length, 'Recolour');
+      // Yield to the event loop so the progress bar repaints and the UI stays
+      // responsive instead of freezing for the whole batch.
+      if (done % 3 == 0) await Future<void>.delayed(Duration.zero);
     }
 
     _decodeCache.clear();
@@ -691,6 +699,151 @@ class AppState extends ChangeNotifier {
         : 'APNG (WebP encoder not found here — release builds ship with it)';
     _setBusy(false, 'Saved $outRel as $note.');
     return saveBytes('$prefix$spriteName.$ext', bytes);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Frame-sequence animation — assemble chosen frames into ONE animation
+  // (classic frame-by-frame, no procedural effect required).
+  // ---------------------------------------------------------------------------
+
+  /// Every sprite file in the project, as `(rel, label)`, for the frame picker.
+  List<({String rel, String label})> spriteFiles() {
+    final List<({String rel, String label})> out = <({String rel, String label})>[];
+    for (final SpriteGroup g in scan?.groups ?? const <SpriteGroup>[]) {
+      for (final SpriteFile f
+          in <SpriteFile?>[g.idle, g.talk, g.post, ...g.statics].whereType<SpriteFile>()) {
+        out.add((rel: f.relPath, label: f.relPath));
+      }
+    }
+    return out;
+  }
+
+  /// Pad frames onto a shared canvas (max width/height) so a sequence of
+  /// differently-sized sprites lines up. [align] 0=top, 1=center, 2=bottom
+  /// (default — AO sprites stand on the floor).
+  List<img.Image> _normalizeFrames(List<img.Image> imgs, int align) {
+    int w = 0, h = 0;
+    for (final img.Image im in imgs) {
+      if (im.width > w) w = im.width;
+      if (im.height > h) h = im.height;
+    }
+    if (w == 0 || h == 0) return imgs;
+    final List<img.Image> out = <img.Image>[];
+    for (final img.Image im in imgs) {
+      if (im.width == w && im.height == h) {
+        out.add(im);
+        continue;
+      }
+      final img.Image canvas = img.Image(width: w, height: h, numChannels: 4);
+      final int dx = ((w - im.width) / 2).round();
+      final int dy = align == 0
+          ? 0
+          : align == 1
+              ? ((h - im.height) / 2).round()
+              : h - im.height;
+      out.add(img.compositeImage(canvas, im, dstX: dx, dstY: dy));
+    }
+    return out;
+  }
+
+  List<img.Image> _orderFrames(List<img.Image> frames,
+      {required bool reverse, required bool pingPong}) {
+    List<img.Image> seq =
+        reverse ? frames.reversed.toList() : List<img.Image>.of(frames);
+    if (pingPong && seq.length > 2) {
+      seq = <img.Image>[...seq, ...seq.sublist(1, seq.length - 1).reversed];
+    }
+    return seq;
+  }
+
+  img.Image _fitEdge(img.Image im, int maxEdge) {
+    final int longest = im.width > im.height ? im.width : im.height;
+    if (longest <= maxEdge) return im;
+    final double s = maxEdge / longest;
+    return img.copyResize(im,
+        width: (im.width * s).round(),
+        height: (im.height * s).round(),
+        interpolation: img.Interpolation.average);
+  }
+
+  /// Preview a frame sequence assembled from [rels] (downscaled PNG frames).
+  Future<List<Uint8List>> renderFrameSequence(
+    List<String> rels, {
+    int fps = 10,
+    bool reverse = false,
+    bool pingPong = false,
+    int align = 2,
+    int maxEdge = 360,
+  }) async {
+    if (rels.isEmpty) return const <Uint8List>[];
+    final List<img.Image> imgs = <img.Image>[];
+    for (final String rel in rels) {
+      final img.Image? im = await decodeFirstFrame(rel);
+      if (im != null) imgs.add(im);
+    }
+    if (imgs.isEmpty) return const <Uint8List>[];
+    List<img.Image> frames = _normalizeFrames(imgs, align);
+    frames = <img.Image>[for (final img.Image im in frames) _fitEdge(im, maxEdge)];
+    frames = _orderFrames(frames, reverse: reverse, pingPong: pingPong);
+    return frames.map((img.Image im) => Codecs.encodePng(im)).toList();
+  }
+
+  /// Assemble [rels] into one animation and save it (WebP, APNG fallback) — both
+  /// dropped into the project and downloaded. Returns the saved path.
+  Future<String?> saveFrameSequence(
+    List<String> rels, {
+    int fps = 10,
+    bool reverse = false,
+    bool pingPong = false,
+    int align = 2,
+    String prefix = SpritePrefix.talk,
+    String name = 'frames',
+    bool preferWebp = true,
+    bool lossless = true,
+    int quality = 95,
+  }) async {
+    if (rels.isEmpty) return null;
+    _setBusy(true, 'Assembling frames…');
+    final List<img.Image> imgs = <img.Image>[];
+    for (final String rel in rels) {
+      final img.Image? im = await decodeFirstFrame(rel);
+      if (im != null) imgs.add(im);
+    }
+    if (imgs.isEmpty) {
+      _setBusy(false, 'No frames to assemble.');
+      return null;
+    }
+    final List<img.Image> ordered = _orderFrames(
+        _normalizeFrames(imgs, align),
+        reverse: reverse,
+        pingPong: pingPong);
+    final int delay = (100 / fps).round().clamp(1, 1000);
+    // Clone each frame: AnimClip.toImage appends the rest into the FIRST frame's
+    // image, so we must not hand it (or alias) a cached/decoded image.
+    final AnimClip clip = AnimClip(<AnimFrame>[
+      for (final img.Image im in ordered) AnimFrame(im.clone(), delayCentis: delay),
+    ]);
+
+    final Uint8List bytes;
+    final String ext;
+    if (preferWebp) {
+      final ({Uint8List bytes, String ext}) r =
+          await clip.encodePreferWebp(lossless: lossless, quality: quality);
+      bytes = r.bytes;
+      ext = r.ext;
+    } else {
+      bytes = clip.encode(ext: 'apng');
+      ext = 'apng';
+    }
+
+    final String safe = name.trim().isEmpty ? 'frames' : name.trim();
+    final String outRel = '$prefix$safe.$ext';
+    await workspace.writeBytes(outRel, bytes);
+    _decodeCache.clear();
+    scan = _scanner.fromPaths(await _projectFiles());
+    final String note = ext == 'webp' ? 'WebP' : 'APNG (WebP encoder unavailable here)';
+    _setBusy(false, 'Saved $outRel — ${ordered.length} frames as $note.');
+    return saveBytes('$prefix$safe.$ext', bytes);
   }
 
   // ---------------------------------------------------------------------------

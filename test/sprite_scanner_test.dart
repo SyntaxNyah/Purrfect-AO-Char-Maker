@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:purrfect/src/discovery/character_builder.dart';
-import 'package:purrfect/src/discovery/sprite_scanner.dart';
-import 'package:purrfect/src/core/ao_constants.dart';
+import 'package:pinsel/src/discovery/character_builder.dart';
+import 'package:pinsel/src/discovery/sprite_scanner.dart';
+import 'package:pinsel/src/core/ao_constants.dart';
 
 void main() {
   const SpriteScanner scanner = SpriteScanner();

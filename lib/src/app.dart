@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
+import 'platform/folder_picker.dart';
 import 'ui/app_state.dart';
 import 'ui/screens/animation_studio_screen.dart';
 import 'ui/screens/bulk_screen.dart';
@@ -13,15 +15,15 @@ import 'ui/screens/mixer_screen.dart';
 import 'ui/screens/plugins_screen.dart';
 import 'ui/theme.dart';
 
-class PurrfectApp extends StatelessWidget {
-  const PurrfectApp({super.key});
+class PinselApp extends StatelessWidget {
+  const PinselApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Purrfect AO Char Maker',
+      title: 'Pinsel AO Char Maker',
       debugShowCheckedModeBanner: false,
-      theme: PurrfectTheme.dark(),
+      theme: PinselTheme.dark(),
       home: const HomeShell(),
     );
   }
@@ -81,35 +83,214 @@ class _HomeShellState extends State<HomeShell> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Row(
-        children: <Widget>[
-          _NavRail(
-            index: _index,
-            onSelect: (int i) => setState(() => _index = i),
+    final AppState app = context.read<AppState>();
+    return CallbackShortcuts(
+      bindings: _bindings(context, app),
+      child: Focus(
+        autofocus: true,
+        child: Scaffold(
+          body: Row(
+            children: <Widget>[
+              _NavRail(
+                index: _index,
+                onSelect: (int i) => setState(() => _index = i),
+              ),
+              const VerticalDivider(width: 1),
+              Expanded(
+                child: Column(
+                  children: <Widget>[
+                    _TopBar(
+                      onImport: () => _importFolder(context),
+                      onShortcuts: () => _showShortcuts(context),
+                    ),
+                    const Divider(height: 1),
+                    Expanded(
+                      // Only rebuilds when project presence flips (rare), not on
+                      // every AppState change.
+                      child: Selector<AppState, bool>(
+                        selector: (_, AppState a) => a.hasProject,
+                        builder: (BuildContext context, bool hasProject, _) {
+                          final bool needsProject =
+                              _index != 0 && _index != 8 && !hasProject;
+                          if (needsProject) {
+                            return _NoProject(
+                                onGoHome: () => setState(() => _index = 0));
+                          }
+                          return KeyedSubtree(
+                            key: ValueKey<int>(_index),
+                            child: _screenFor(_index),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-          const VerticalDivider(width: 1),
-          Expanded(
-            // Only rebuilds when project presence flips (rare), not on every
-            // AppState change.
-            child: Selector<AppState, bool>(
-              selector: (_, AppState a) => a.hasProject,
-              builder: (BuildContext context, bool hasProject, _) {
-                final bool needsProject =
-                    _index != 0 && _index != 8 && !hasProject;
-                if (needsProject) {
-                  return _NoProject(onGoHome: () => setState(() => _index = 0));
-                }
-                return KeyedSubtree(
-                  key: ValueKey<int>(_index),
-                  child: _screenFor(_index),
-                );
-              },
-            ),
+          bottomNavigationBar: const _StatusBar(),
+        ),
+      ),
+    );
+  }
+
+  /// All global keyboard shortcuts. Control **and** ⌘ (meta) are both bound so
+  /// the same keys work on Windows/Linux and macOS.
+  Map<ShortcutActivator, VoidCallback> _bindings(BuildContext context, AppState app) {
+    final Map<ShortcutActivator, VoidCallback> m = <ShortcutActivator, VoidCallback>{};
+    void bind(LogicalKeyboardKey key, VoidCallback cb, {bool shift = false}) {
+      m[SingleActivator(key, control: true, shift: shift)] = cb;
+      m[SingleActivator(key, meta: true, shift: shift)] = cb;
+    }
+
+    bind(LogicalKeyboardKey.keyZ, app.undo);
+    bind(LogicalKeyboardKey.keyY, app.redo);
+    bind(LogicalKeyboardKey.keyZ, app.redo, shift: true); // Ctrl+Shift+Z
+    bind(LogicalKeyboardKey.keyS, () => app.exportZip());
+    bind(LogicalKeyboardKey.keyE, () => app.exportIni());
+    bind(LogicalKeyboardKey.keyO, () => _importFolder(context));
+    bind(LogicalKeyboardKey.keyN, () {
+      if (app.hasProject) app.addEmote();
+    });
+    bind(LogicalKeyboardKey.arrowDown, () => _selectRelative(app, 1));
+    bind(LogicalKeyboardKey.arrowUp, () => _selectRelative(app, -1));
+
+    const List<LogicalKeyboardKey> digits = <LogicalKeyboardKey>[
+      LogicalKeyboardKey.digit1, LogicalKeyboardKey.digit2, LogicalKeyboardKey.digit3,
+      LogicalKeyboardKey.digit4, LogicalKeyboardKey.digit5, LogicalKeyboardKey.digit6,
+      LogicalKeyboardKey.digit7, LogicalKeyboardKey.digit8, LogicalKeyboardKey.digit9,
+    ];
+    for (int i = 0; i < digits.length && i < _dests.length; i++) {
+      final int idx = i;
+      bind(digits[i], () => setState(() => _index = idx));
+    }
+    m[const SingleActivator(LogicalKeyboardKey.f1)] = () => _showShortcuts(context);
+    return m;
+  }
+
+  void _selectRelative(AppState app, int delta) {
+    final int count = app.character?.emotes.length ?? 0;
+    if (count == 0) return;
+    app.selectEmote((app.selectedEmote + delta).clamp(0, count - 1));
+  }
+
+  Future<void> _importFolder(BuildContext context) async {
+    final AppState app = context.read<AppState>();
+    final List<PickedFolderFile>? files = await pickFolderFiles();
+    if (files == null || files.isEmpty) return;
+    await app.importFiles(<PickedFile>[
+      for (final PickedFolderFile f in files) PickedFile(f.name, f.bytes),
+    ]);
+  }
+
+  void _showShortcuts(BuildContext context) {
+    const List<List<String>> rows = <List<String>>[
+      <String>['Ctrl/⌘ + Z', 'Undo'],
+      <String>['Ctrl/⌘ + Y  ·  Ctrl/⌘ + Shift + Z', 'Redo'],
+      <String>['Ctrl/⌘ + O', 'Import a folder of sprites'],
+      <String>['Ctrl/⌘ + S', 'Export character .zip'],
+      <String>['Ctrl/⌘ + E', 'Export char.ini'],
+      <String>['Ctrl/⌘ + N', 'Add a new emote'],
+      <String>['Ctrl/⌘ + ↑ / ↓', 'Previous / next emote'],
+      <String>['Ctrl/⌘ + 1 … 9', 'Jump to a screen (Home … Plugins)'],
+      <String>['F1', 'Show this list'],
+    ];
+    showDialog<void>(
+      context: context,
+      builder: (BuildContext ctx) => AlertDialog(
+        title: const Text('Keyboard shortcuts'),
+        content: SizedBox(
+          width: 460,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              for (final List<String> r in rows)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 3),
+                  child: Row(
+                    children: <Widget>[
+                      SizedBox(
+                        width: 230,
+                        child: Text(r[0],
+                            style: const TextStyle(
+                                fontFamily: 'monospace', fontWeight: FontWeight.w600)),
+                      ),
+                      Expanded(child: Text(r[1])),
+                    ],
+                  ),
+                ),
+            ],
           ),
+        ),
+        actions: <Widget>[
+          TextButton(onPressed: () => Navigator.of(ctx).pop(), child: const Text('Close')),
         ],
       ),
-      bottomNavigationBar: const _StatusBar(),
+    );
+  }
+}
+
+/// Slim toolbar above the active screen: undo/redo + quick import/export + the
+/// shortcuts cheatsheet. Only repaints when the relevant state flips (not on
+/// every slider drag).
+class _TopBar extends StatelessWidget {
+  const _TopBar({required this.onImport, required this.onShortcuts});
+
+  final VoidCallback onImport;
+  final VoidCallback onShortcuts;
+
+  @override
+  Widget build(BuildContext context) {
+    final AppState app = context.read<AppState>();
+    return Selector<AppState, (bool, bool, bool)>(
+      selector: (_, AppState a) => (a.canUndo, a.canRedo, a.hasProject),
+      builder: (BuildContext context, (bool, bool, bool) s, _) {
+        final bool canUndo = s.$1, canRedo = s.$2, hasProject = s.$3;
+        return Material(
+          color: PinselTheme.surface,
+          child: SizedBox(
+            height: 44,
+            child: Row(
+              children: <Widget>[
+                const SizedBox(width: 6),
+                IconButton(
+                  tooltip: 'Undo (Ctrl+Z)',
+                  onPressed: canUndo ? app.undo : null,
+                  icon: const Icon(Icons.undo_rounded),
+                ),
+                IconButton(
+                  tooltip: 'Redo (Ctrl+Y)',
+                  onPressed: canRedo ? app.redo : null,
+                  icon: const Icon(Icons.redo_rounded),
+                ),
+                const VerticalDivider(width: 16, indent: 10, endIndent: 10),
+                IconButton(
+                  tooltip: 'Import folder (Ctrl+O)',
+                  onPressed: onImport,
+                  icon: const Icon(Icons.folder_open_rounded),
+                ),
+                IconButton(
+                  tooltip: 'Export .zip (Ctrl+S)',
+                  onPressed: hasProject ? () => app.exportZip() : null,
+                  icon: const Icon(Icons.archive_outlined),
+                ),
+                IconButton(
+                  tooltip: 'Export char.ini (Ctrl+E)',
+                  onPressed: hasProject ? () => app.exportIni() : null,
+                  icon: const Icon(Icons.description_outlined),
+                ),
+                const Spacer(),
+                IconButton(
+                  tooltip: 'Keyboard shortcuts (F1)',
+                  onPressed: onShortcuts,
+                  icon: const Icon(Icons.keyboard_rounded),
+                ),
+                const SizedBox(width: 6),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }
@@ -185,7 +366,7 @@ class _StatusBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: PurrfectTheme.surface,
+      color: PinselTheme.surface,
       child: SizedBox(
         height: 30,
         child: Consumer<AppState>(

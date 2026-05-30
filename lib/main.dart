@@ -8,7 +8,7 @@ void main() {
   runApp(
     ChangeNotifierProvider<AppState>(
       create: (_) => AppState(),
-      child: const PurrfectApp(),
+      child: const PinselApp(),
     ),
   );
 }

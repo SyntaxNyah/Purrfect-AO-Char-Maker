@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:purrfect/src/core/ao_constants.dart';
-import 'package:purrfect/src/core/character.dart';
+import 'package:pinsel/src/core/ao_constants.dart';
+import 'package:pinsel/src/core/character.dart';
 
 const String _sample = '''
 [Options]

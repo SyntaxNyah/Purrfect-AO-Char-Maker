@@ -1,6 +1,6 @@
 # `char.ini` reference
 
-This is the format Purrfect reads and writes. It is compatible with the AO2
+This is the format Pinsel reads and writes. It is compatible with the AO2
 reference client and webAO. Verified against the official AO content-creation
 docs and `AO2-Client` source.
 
@@ -45,7 +45,7 @@ with the same base name.
 | `stretch` | `true`/`false` |
 
 `[Options2]`–`[Options5]` may override `showname`/`blips`; `[OptionsN]` maps an
-emote number to which options block it uses. Purrfect preserves all of these.
+emote number to which options block it uses. Pinsel preserves all of these.
 
 ### `[Shouts]`
 Custom interjection text, e.g. `custom_name`, `custom_message`,
@@ -72,7 +72,7 @@ number = N
   - `0` hide desk · `1` show desk · `2` hide during preanim · `3` show only
     during preanim · `4`/`5` = `2`/`3` but center & hide pairs
 
-Purrfect round-trips the exact field count, so `N#-#n#0` (4 fields),
+Pinsel round-trips the exact field count, so `N#-#n#0` (4 fields),
 `N#-#n#0#` (trailing empty deskmod), and `N#-#n#0#1` all preserve precisely.
 
 ### Sound sections (indexed by emote number)
@@ -120,5 +120,5 @@ number = 4
 
 ## Buttons & icons
 - Buttons live in `emotions/buttonN_off.png` (and optional `buttonN_on.png`),
-  1:1, ≥ 40×40. Purrfect auto-generates `_off` icons on export.
+  1:1, ≥ 40×40. Pinsel auto-generates `_off` icons on export.
 - The character icon is `char_icon.png`, 1:1, ≥ 60×60.

@@ -1,4 +1,4 @@
-# Build every locally-available Purrfect target (Windows).
+# Build every locally-available Pinsel target (Windows).
 #   Usage:  powershell -ExecutionPolicy Bypass -File scripts\build_all.ps1
 $ErrorActionPreference = "Stop"
 

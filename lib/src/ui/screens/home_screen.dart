@@ -45,7 +45,7 @@ class HomeScreen extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(20),
       children: <Widget>[
-        Text('🐾 Purrfect AO Char Maker',
+        Text('🐾 Pinsel AO Char Maker',
             style: Theme.of(context).textTheme.headlineMedium),
         const SizedBox(height: 4),
         Text(

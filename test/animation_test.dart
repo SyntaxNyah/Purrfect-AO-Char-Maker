@@ -1,9 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
-import 'package:purrfect/src/animation/anim_engine.dart';
-import 'package:purrfect/src/animation/anim_clip.dart';
-import 'package:purrfect/src/animation/easing.dart';
-import 'package:purrfect/src/animation/timeline.dart';
+import 'package:pinsel/src/animation/anim_engine.dart';
+import 'package:pinsel/src/animation/anim_clip.dart';
+import 'package:pinsel/src/animation/easing.dart';
+import 'package:pinsel/src/animation/timeline.dart';
 
 img.Image _base() => img.Image(width: 8, height: 8, numChannels: 4)
   ..setPixelRgba(4, 4, 255, 128, 0, 255);

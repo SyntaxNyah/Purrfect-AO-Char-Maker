@@ -1,6 +1,6 @@
 # Plugins & extensions
 
-Two ways to extend Purrfect:
+Two ways to extend Pinsel:
 
 1. **Content packs** — plain JSON. No code, no recompile, and they work on the
    **web build** too. This is how most people extend the app.

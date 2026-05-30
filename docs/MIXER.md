@@ -27,17 +27,26 @@ several, switch between them, and remove them with the ✕.
    - **Load a 2nd sprite folder…** — dump another character's folder here; it
      becomes a parts source and is auto-selected.
    - **Snip from** — pick which sprite in that source to take a piece of.
-3. Toggle **Ellipse snip** (great for heads) or use a rectangle.
-4. Drag the **Snip region** sliders (X/Y/Width/Height, as fractions of the
-   part) to frame the piece you want.
-5. Drag the **Placement** sliders (Pos X/Y on the body, Scale, Rotate, Opacity)
-   to position it.
-6. Name it and **Save as new emote** — it's added to your project as a static
-   sprite and a new emote, ready to export.
+3. **Snip region (crop the part)** — toggle **Ellipse snip** (great for heads)
+   or use a rectangle, then drag **X / Y / Width / Height** to frame the piece.
+   - **Flip H / Flip V** mirror the snip (handy for symmetry).
+   - **Feather** softens the cut edge so it blends into the body.
+4. **Recolour the part (match the body)** — **Hue / Saturation / Brightness**
+   sliders retint just the snipped piece so it matches the body's palette.
+5. **Placement (on the body)** — **Pos X / Y**, **Scale**, **Rotate**,
+   **Opacity**. **Center** snaps it to the middle.
+6. **Crop output** — trim **Left / Top / Right / Bottom** off the finished
+   composite.
+7. Name it and **Save as new emote** — it's added to your project as a static
+   sprite and a new emote, ready to export. **Reset** (top-right) clears all the
+   sliders back to defaults.
+
+> The live preview is **debounced and rendered downscaled**, so dragging sliders
+> stays smooth; only **Save** bakes the full-resolution image.
 
 ## In code (`Compositor`)
 ```dart
-import 'package:purrfect/src/imaging/compositor.dart';
+import 'package:pinsel/src/imaging/compositor.dart';
 
 // 1. Snip an ellipse (a head) out of sprite A
 final cut = Compositor.cutEllipse(headSprite, IntRect(40, 10, 120, 130));

@@ -1,6 +1,6 @@
-name: purrfect
+name: pinsel
 description: >-
-  The Purrfect AO Char Maker — the most customizable, most automated
+  The Pinsel AO Char Maker — the most customizable, most automated
   Attorney Online / webAO character & button maker. Desktop, Android and iOS
   from a single codebase.
 publish_to: "none"
@@ -48,10 +48,33 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^4.0.0
 
+  # Generates the platform launcher icons from one source PNG (see the
+  # `flutter_launcher_icons` block below). Run: dart run flutter_launcher_icons
+  flutter_launcher_icons: ^0.14.1
+
 flutter:
   uses-material-design: true
   assets:
     - assets/presets/
+
+# App icon: drop a 1024×1024 PNG of the Pinsel mascot (a cute anime girl) at
+# assets/icon/app_icon.png, then run `dart run flutter_launcher_icons` to write
+# the Windows/macOS/Linux/Android/iOS/web icons. See assets/icon/README.md.
+flutter_launcher_icons:
+  image_path: "assets/icon/app_icon.png"
+  android: true
+  ios: true
+  web:
+    generate: true
+    background_color: "#1B1230"
+    theme_color: "#B58CFF"
+  windows:
+    generate: true
+    icon_size: 256
+  macos:
+    generate: true
+  remove_alpha_ios: true
+  background_color_ios: "#1B1230"
   # Note: a GPU fragment-shader fast-path for real-time recolour is on the
   # roadmap (see ROADMAP.md). The current build uses an efficient CPU preview
   # (downscaled, in-isolate-ready) which works on every platform including web.

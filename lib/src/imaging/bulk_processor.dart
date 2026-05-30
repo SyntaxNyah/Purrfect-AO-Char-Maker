@@ -62,6 +62,8 @@ class BulkProcessor {
         results.add(BulkResult(rel, ok: false, error: '$e'));
       }
       onProgress?.call(++done, files.length, rel);
+      // Yield periodically so the UI repaints (progress) and stays responsive.
+      if (done % 4 == 0) await Future<void>.delayed(Duration.zero);
     }
     return results;
   }

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build every locally-available Purrfect target (Linux/macOS).
+# Build every locally-available Pinsel target (Linux/macOS).
 #   Usage:  bash scripts/build_all.sh
 set -euo pipefail
 

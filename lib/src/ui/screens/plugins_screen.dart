@@ -27,7 +27,7 @@ class _PluginsScreenState extends State<PluginsScreen> {
     if (res == null || res.files.isEmpty || res.files.first.bytes == null) return;
     try {
       final String json = utf8.decode(res.files.first.bytes!);
-      final PurrfectPack pack = ExtensionRegistry.instance.installPackJson(json);
+      final PinselPack pack = ExtensionRegistry.instance.installPackJson(json);
       setState(() => _message =
           'Installed "${pack.name}" (${pack.itemCount} items) by ${pack.author}.');
     } catch (e) {
@@ -69,7 +69,7 @@ class _PluginsScreenState extends State<PluginsScreen> {
         if (reg.packs.isEmpty)
           const Text('No packs installed yet.')
         else
-          ...reg.packs.map((PurrfectPack p) => Card(
+          ...reg.packs.map((PinselPack p) => Card(
                 child: ListTile(
                   title: Text('${p.name}  v${p.version}'),
                   subtitle: Text('${p.description}\nby ${p.author} · '

@@ -41,6 +41,8 @@ Legend: ✅ done · 🟡 partial · ⬜ planned
 
 ## Animation
 - ✅ ~88 stackable recipes with easing (incl. outline/glow/shadow effect recipes)
+- ✅ **Frame-by-frame** assembler (pick/reorder existing sprites → one animation;
+  fps, reverse, ping-pong, canvas alignment)
 - ✅ Region-targeted animation (wave a hand, spin a limb)
 - ✅ Manual keyframe timeline
 - ✅ Lip-sync (two-state, multi-viseme, rough auto)
@@ -63,10 +65,19 @@ Legend: ✅ done · 🟡 partial · ⬜ planned
 - ⬜ Recent projects / autosave
 
 ## UI polish
-- ✅ Performance: lazy active-screen build, decoupled/debounced previews,
-  cached chip lists, smooth (non-pixelated) scaling
+- ✅ Performance: lazy active-screen build, decoupled/debounced previews
+  (incl. the Mixer), cached chip lists, smooth (non-pixelated) scaling
+- ✅ Performance: allocation-free per-pixel op core (sequential pixel cursor),
+  bulk/recolour/edit loops yield so the UI stays responsive
+- ✅ Keyboard shortcuts (undo/redo, import/export, screen jumps, F1 help) + a
+  top toolbar with undo/redo + quick actions
+- ✅ Mixer tools: snip-crop/ellipse, flip H/V, feather, recolour the snip,
+  output crop, center/reset
 - 🟡 Editor, Colour Lab, Animate, Buttons, Edit, Mixer, Bulk, Plugins screens
+- 🟡 App icon: `flutter_launcher_icons` pipeline wired (`assets/icon/app_icon.png`,
+  `dart run flutter_launcher_icons`) — placeholder art, swap in the Pinsel mascot
 - ⬜ Drag-and-drop import
+- ⬜ Move heavy bakes (bulk/animation export) into isolates
 - ⬜ Crop-rectangle button compositor UI (engine: `ButtonMaker.renderComposite`)
 - ⬜ Region picker overlay (drag a box) for region animation/outfit edits
 - ⬜ Theming / accessibility pass

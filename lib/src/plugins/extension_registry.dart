@@ -6,64 +6,64 @@ import 'pack.dart';
 
 /// The single place the rest of the app asks "what presets / palettes / recipes
 /// are available?". It merges the built-in [PresetLibrary] with every installed
-/// [PurrfectPack], and exposes the code-level extension hooks for native
+/// [PinselPack], and exposes the code-level extension hooks for native
 /// plugins. Listen to [revision] to refresh UI when packs change.
 class ExtensionRegistry {
   ExtensionRegistry._();
 
   static final ExtensionRegistry instance = ExtensionRegistry._();
 
-  final List<PurrfectPack> _packs = <PurrfectPack>[];
+  final List<PinselPack> _packs = <PinselPack>[];
 
   /// Bumped whenever the available content changes (install/remove pack, or a
   /// native plugin registers a code op). UI can watch this to rebuild.
   int revision = 0;
 
-  List<PurrfectPack> get packs => List<PurrfectPack>.unmodifiable(_packs);
+  List<PinselPack> get packs => List<PinselPack>.unmodifiable(_packs);
 
   // ---- merged content (built-in + packs) ----
 
   List<OpPipeline> get colorPresets => <OpPipeline>[
         ...PresetLibrary.colorPresets,
-        for (final PurrfectPack p in _packs) ...p.colorPresets,
+        for (final PinselPack p in _packs) ...p.colorPresets,
       ];
 
   List<NamedPalette> get palettes => <NamedPalette>[
         ...PresetLibrary.palettes,
-        for (final PurrfectPack p in _packs) ...p.palettes,
+        for (final PinselPack p in _packs) ...p.palettes,
       ];
 
   List<NamedGradient> get gradients => <NamedGradient>[
         ...PresetLibrary.gradients,
-        for (final PurrfectPack p in _packs) ...p.gradients,
+        for (final PinselPack p in _packs) ...p.gradients,
       ];
 
   List<AnimPreset> get animPresets => <AnimPreset>[
         ...PresetLibrary.animPresets,
-        for (final PurrfectPack p in _packs) ...p.animPresets,
+        for (final PinselPack p in _packs) ...p.animPresets,
       ];
 
   List<EmoteNameSet> get emoteNameSets => <EmoteNameSet>[
         ...PresetLibrary.emoteNameSets,
-        for (final PurrfectPack p in _packs) ...p.emoteNameSets,
+        for (final PinselPack p in _packs) ...p.emoteNameSets,
       ];
 
   // ---- pack management (works on every platform, including web) ----
 
-  void installPack(PurrfectPack pack) {
-    _packs.removeWhere((PurrfectPack p) => p.name == pack.name);
+  void installPack(PinselPack pack) {
+    _packs.removeWhere((PinselPack p) => p.name == pack.name);
     _packs.add(pack);
     revision++;
   }
 
-  PurrfectPack installPackJson(String json) {
-    final PurrfectPack pack = PurrfectPack.fromJsonString(json);
+  PinselPack installPackJson(String json) {
+    final PinselPack pack = PinselPack.fromJsonString(json);
     installPack(pack);
     return pack;
   }
 
   void removePack(String name) {
-    _packs.removeWhere((PurrfectPack p) => p.name == name);
+    _packs.removeWhere((PinselPack p) => p.name == name);
     revision++;
   }
 
@@ -89,5 +89,5 @@ class ExtensionRegistry {
 
   /// Counts for the "Plugins" screen.
   int get installedItemCount =>
-      _packs.fold(0, (int sum, PurrfectPack p) => sum + p.itemCount);
+      _packs.fold(0, (int sum, PinselPack p) => sum + p.itemCount);
 }

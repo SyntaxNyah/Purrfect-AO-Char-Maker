@@ -1,13 +1,13 @@
 # Architecture
 
-Purrfect is split into a **pure-Dart engine** (no Flutter imports, fully
+Pinsel is split into a **pure-Dart engine** (no Flutter imports, fully
 unit-testable, identical on every platform) and a thin **Flutter UI** on top.
 The same engine runs on desktop, mobile, and the web — only file access and a
 couple of codecs differ, and those are hidden behind platform abstractions.
 
 ```
 lib/
-  main.dart                     app entry (wires AppState + PurrfectApp)
+  main.dart                     app entry (wires AppState + PinselApp)
   src/
     core/                       ── the AO data model (no Flutter, no dart:io) ──
       ao_constants.dart         every AO constant: extensions, prefixes,
@@ -65,7 +65,16 @@ lib/
       widgets/                  checker_image, zoom_canvas
       screens/                  home, editor, color_lab, animation_studio,
                                 button_studio, edit, mixer, bulk, plugins
+    app.dart                    HomeShell: nav rail + global keyboard shortcuts
+                                (CallbackShortcuts) + undo/redo toolbar + status
 ```
+
+**Performance.** The per-pixel op core (`ImageOps._eachPixel`) walks the frame's
+sequential pixel cursor and reuses one struct (no per-pixel random access or
+allocation); live previews (Colour Lab, Edit, Mixer) run **downscaled and
+debounced**; and the long bake loops (`applyPipeline`/`applyEdit`/
+`BulkProcessor.run`) yield to the event loop so progress repaints instead of the
+window freezing.
 
 ## Key design decisions
 

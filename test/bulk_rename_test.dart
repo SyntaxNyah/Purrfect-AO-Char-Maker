@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:purrfect/src/discovery/bulk_rename.dart';
+import 'package:pinsel/src/discovery/bulk_rename.dart';
 
 void main() {
   test('find/replace', () {

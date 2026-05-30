@@ -1,4 +1,4 @@
-# 🐾 Purrfect AO Char Maker
+# 🐾 Pinsel AO Char Maker
 
 **The most customizable, most automated Attorney Online / webAO character & button maker — on every platform from one codebase.**
 
@@ -51,6 +51,8 @@ Runs natively on **Windows, Linux, macOS, Android, iOS**, and as a **website**
   head) and drop it onto another (a body), with position/scale/rotate/opacity,
   then save it as a new emote. Combine **two characters** by loading a **second
   sprite folder** right in the Mixer (kept separate from your project + export).
+  Tools: snip-crop + ellipse, **flip H/V**, **feather**, **recolour the snip** to
+  match the body, and **crop the output** — with a smooth, debounced preview.
 - **Bulk operations** — recolour, convert, **crop/trim**, or **rename** *every*
   sprite/emote at once (find/replace, prefix/suffix, numbering, case).
 - **Format conversion** — import webp/apng/gif/png (and jpg/bmp/tga/tiff/…),
@@ -62,6 +64,9 @@ Runs natively on **Windows, Linux, macOS, Android, iOS**, and as a **website**
   nod, head-shake, swing, drift, orbit, heartbeat, glow, flash, rainbow, pulse,
   neon, hologram, glitch, fade, throb, sparkle, drop-in, spring-in, outline-pulse,
   aura-glow… **stack them** ("move + glow + rainbow") with **easing curves**.
+- **Frame-by-frame** — already drew the frames? The **Frames** mode stitches
+  chosen sprites into one animation (fps, reverse, ping-pong, auto-aligned
+  canvas) and exports it — no procedural effect required.
 - **Animate just a part** — pick a region to wave a hand or spin a limb.
 - **Lip-sync** — give it a mouth-closed + mouth-open sprite (or several visemes)
   and it builds the talking `(b)` animation; a rough one-sprite auto mode exists
@@ -82,6 +87,15 @@ Runs natively on **Windows, Linux, macOS, Android, iOS**, and as a **website**
 - **Undo/redo** and a **validator/linter** that flags missing sprites, count
   mismatches, and preanim mistakes — with plain-language fixes.
 
+### Fast & comfortable
+- **Keyboard shortcuts** for everything — `Ctrl/⌘+Z`/`Y` undo/redo, `Ctrl/⌘+S/E`
+  export, `Ctrl/⌘+1…9` to jump screens, `F1` for the cheat-sheet — plus a top
+  **toolbar** with undo/redo + import/export buttons. See
+  [docs/SHORTCUTS.md](docs/SHORTCUTS.md).
+- **Tuned for speed** — an allocation-free per-pixel core, downscaled/debounced
+  live previews, and bulk jobs that keep the UI responsive (progress instead of
+  a freeze).
+
 ---
 
 ## 🚀 Quick start
@@ -91,7 +105,7 @@ You need the [Flutter SDK](https://docs.flutter.dev/get-started/install)
 
 ```bash
 # 1. Get the code
-cd Purrfect-AO-Char-Maker
+cd Pinsel-AO-Char-Maker
 
 # 2. Generate the platform folders (android/ios/linux/macos/windows/web)
 flutter create .
@@ -120,7 +134,7 @@ You don't need to compile anything yourself — GitHub Actions does it for every
 platform via [`.github/workflows/build.yml`](.github/workflows/build.yml).
 
 **Open the *Actions* tab → the latest "Build binaries" run.** Each platform's
-   output is under **Artifacts** (`purrfect-windows`, `-linux`, `-macos`,
+   output is under **Artifacts** (`pinsel-windows`, `-linux`, `-macos`,
    `-android-apk`, `-web`). Download and unzip.
 
 > Builds run **independently of the tests**, so you still get binaries even if a
@@ -139,6 +153,7 @@ platform via [`.github/workflows/build.yml`](.github/workflows/build.yml).
 | [docs/COLOR_OPS.md](docs/COLOR_OPS.md) | Every colour operation + parameters |
 | [docs/ANIMATION.md](docs/ANIMATION.md) | Recipes, easing, timeline, lip-sync, regions |
 | [docs/MIXER.md](docs/MIXER.md) | Snip & combine sprites (head-on-body) |
+| [docs/SHORTCUTS.md](docs/SHORTCUTS.md) | Keyboard shortcuts + the top toolbar |
 | [docs/PLUGINS.md](docs/PLUGINS.md) | Pack JSON schema + native plugins + libwebp |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | How the code is organised |
 | [ROADMAP.md](ROADMAP.md) | What's done and what's next |

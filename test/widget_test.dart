@@ -7,15 +7,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:provider/provider.dart';
-import 'package:purrfect/src/app.dart';
-import 'package:purrfect/src/ui/app_state.dart';
+import 'package:pinsel/src/app.dart';
+import 'package:pinsel/src/ui/app_state.dart';
 
 void main() {
   testWidgets('app boots to the home shell without errors', (WidgetTester tester) async {
     await tester.pumpWidget(
       ChangeNotifierProvider<AppState>(
         create: (_) => AppState(),
-        child: const PurrfectApp(),
+        child: const PinselApp(),
       ),
     );
     expect(find.byType(MaterialApp), findsOneWidget);

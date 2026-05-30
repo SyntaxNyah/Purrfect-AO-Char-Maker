@@ -12,8 +12,8 @@ import '../presets/presets.dart';
 /// is the safe, cross-platform half of the plugin system; native code plugins
 /// (new ops/recipes/easings) register through [ImageOps.register],
 /// [AnimEngine.register] and the easing registry.
-class PurrfectPack {
-  PurrfectPack({
+class PinselPack {
+  PinselPack({
     required this.name,
     this.author = 'unknown',
     this.version = '1.0.0',
@@ -46,16 +46,16 @@ class PurrfectPack {
       animPresets.length +
       emoteNameSets.length;
 
-  static PurrfectPack fromJsonString(String s) =>
+  static PinselPack fromJsonString(String s) =>
       fromJson(jsonDecode(s) as Map<String, dynamic>);
 
-  static PurrfectPack fromJson(Map<String, dynamic> j) {
+  static PinselPack fromJson(Map<String, dynamic> j) {
     List<T> list<T>(String key, T Function(Map<String, dynamic>) f) =>
         ((j[key] as List?) ?? <dynamic>[])
             .map((dynamic e) => f((e as Map).cast<String, dynamic>()))
             .toList();
 
-    return PurrfectPack(
+    return PinselPack(
       name: j['name'] as String? ?? 'Unnamed Pack',
       author: j['author'] as String? ?? 'unknown',
       version: j['version'] as String? ?? '1.0.0',

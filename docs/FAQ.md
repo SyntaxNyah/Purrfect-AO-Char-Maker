@@ -1,7 +1,7 @@
 # FAQ & troubleshooting
 
 **Is the output really AO-compatible?**
-Yes — Purrfect writes the same `char.ini` format and sprite/button layout the
+Yes — Pinsel writes the same `char.ini` format and sprite/button layout the
 AO2 reference client and webAO read. The parser/writer are unit-tested against
 real-world inis, and the format was verified against the official docs and AO2
 source. See [CHAR_INI_FORMAT.md](CHAR_INI_FORMAT.md).
@@ -61,6 +61,33 @@ That was a bug with **WebP** sprites (the default format): the edit was written 
 a stray `.apng` while the original `.webp` was left in place. It's fixed — recolour
 and crop/trim now re-encode each sprite **in place** in its own format. Re-run the
 action.
+
+**Is there keyboard control / undo buttons?**
+Yes. Every screen has a top **toolbar** with **undo/redo** (and import/export)
+buttons, and there are global shortcuts: `Ctrl/⌘+Z` undo, `Ctrl/⌘+Y` (or
+`Ctrl/⌘+Shift+Z`) redo, `Ctrl/⌘+S`/`E` export, `Ctrl/⌘+O` import, `Ctrl/⌘+1…9`
+to switch screens, `F1` for the full list. See [SHORTCUTS.md](SHORTCUTS.md).
+
+**Recolour / bulk / animation feel slow or freeze — anything I can do?**
+It's a lot faster now: the per-pixel engine is allocation-free, live previews
+run on a downscaled copy, and bulk/recolour/edit jobs yield so the **progress
+bar updates** instead of the window freezing. The big one-off **bakes** (recolour
+ALL, convert ALL, animation export at full res) still take a moment on large
+sprite sets — watch the status bar. Tips: recolour the **selected emote** (just
+`Apply`) while dialling in a look, then do **All sprites** once; keep sprite
+dimensions reasonable; the native WebP encoder (desktop release / web) is much
+faster than the APNG fallback.
+
+**Can it just play my frames in order (real frame-by-frame), not only effects?**
+Yes. **Animate → Frames**: tap sprites to add them as ordered frames, set
+**fps**, and optionally **Reverse** / **Ping-pong**; differently-sized frames are
+auto-aligned onto a shared canvas. **Save as (b)/(a)** exports them as one
+animated WebP (APNG fallback). Need ≥2 frames. (The **Effects** mode is the
+procedural one.) See [ANIMATION.md](ANIMATION.md#frame-by-frame-assemble-given-frames).
+
+**How do I change the app icon?**
+Drop a 1024×1024 PNG at `assets/icon/app_icon.png` and run
+`dart run flutter_launcher_icons` — see `assets/icon/README.md`.
 
 **How do I make a sprite move if I can't animate?**
 Open the **Animate** screen, click a preset (e.g. "Happy Bounce" or "Magical"),

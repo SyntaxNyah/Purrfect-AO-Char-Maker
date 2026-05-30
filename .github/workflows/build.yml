@@ -1,6 +1,6 @@
 name: Build binaries
 
-# Compiles Purrfect for every platform on GitHub's runners.
+# Compiles Pinsel for every platform on GitHub's runners.
 #
 #  * Every push / manual run  -> uploads downloadable artifacts per platform
 #    (Actions tab -> the run -> "Artifacts").
@@ -83,7 +83,7 @@ jobs:
           exit 0
       - uses: actions/upload-artifact@v4
         with:
-          name: purrfect-windows
+          name: pinsel-windows
           path: build/windows/x64/runner/Release/
 
   linux:
@@ -117,7 +117,7 @@ jobs:
           ls "$dst" | grep -q webpmux || echo "::warning::libwebpmux not bundled — animated WebP may be unavailable on Linux"
       - uses: actions/upload-artifact@v4
         with:
-          name: purrfect-linux
+          name: pinsel-linux
           path: build/linux/x64/release/bundle/
 
   macos:
@@ -154,7 +154,7 @@ jobs:
           ls -la "$fw" || true
       - uses: actions/upload-artifact@v4
         with:
-          name: purrfect-macos
+          name: pinsel-macos
           path: build/macos/Build/Products/Release/
 
   android:
@@ -194,7 +194,7 @@ jobs:
       - run: flutter build apk --release
       - uses: actions/upload-artifact@v4
         with:
-          name: purrfect-android-apk
+          name: pinsel-android-apk
           path: build/app/outputs/flutter-apk/app-release.apk
 
   web:
@@ -207,10 +207,10 @@ jobs:
       - run: flutter pub get
       # base-href must match the repo name for project Pages. Override if you
       # host at a domain root (use /).
-      - run: flutter build web --release --base-href /Purrfect-AO-Char-Maker/
+      - run: flutter build web --release --base-href /Pinsel-AO-Char-Maker/
       - uses: actions/upload-artifact@v4
         with:
-          name: purrfect-web
+          name: pinsel-web
           path: build/web/
       - name: Publish website to GitHub Pages (on tag)
         if: startsWith(github.ref, 'refs/tags/')

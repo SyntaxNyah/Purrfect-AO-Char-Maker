@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
-/// The Purrfect look: a calm dark theme with a warm "cat" accent. Centralised so
+/// The Pinsel look: a calm dark theme with a warm "cat" accent. Centralised so
 /// every screen stays consistent and re-themes in one place.
-class PurrfectTheme {
-  PurrfectTheme._();
+class PinselTheme {
+  PinselTheme._();
 
   static const Color seed = Color(0xFFF6A23B); // warm amber/ginger
   static const Color bg = Color(0xFF14131A);

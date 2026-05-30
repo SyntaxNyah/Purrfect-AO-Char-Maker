@@ -1,7 +1,7 @@
 # Animation
 
 AO sprites are just multi-frame images, so "make the character move/glow" means
-"generate an animated `(a)`/`(b)` sprite". Purrfect does that for you — pick a
+"generate an animated `(a)`/`(b)` sprite". Pinsel does that for you — pick a
 recipe, tune intensity, export. No animation knowledge required, but full
 keyframe control is there if you want it.
 
@@ -62,9 +62,32 @@ AnimRecipe('swing',
   region: IntRect(x, y, w, h));   // the hand/arm box
 ```
 
+## Frame-by-frame (assemble given frames)
+
+Already have the frames drawn? Skip the procedural effects and stitch existing
+sprites together into one animation. In the app: **Animate → Frames**, tap
+sprites to build an ordered **Sequence**, set **fps / reverse / ping-pong /
+align**, and **Save**. Frames of different sizes are padded onto a shared canvas
+(bottom-aligned by default, so sprites keep standing on the floor).
+
+In code it's just an `AnimClip` of the frames you choose:
+```dart
+import 'package:pinsel/src/animation/anim_clip.dart';
+
+final clip = AnimClip(<AnimFrame>[
+  AnimFrame(frame0, delayCentis: 10), // 10 cs = 100 ms per frame (≈10 fps)
+  AnimFrame(frame1, delayCentis: 10),
+  AnimFrame(frame2, delayCentis: 10),
+]);
+final ({Uint8List bytes, String ext}) out = await clip.encodePreferWebp();
+```
+`AppState.saveFrameSequence(rels, {fps, reverse, pingPong, align, prefix, name})`
+does this end-to-end (normalise → order → encode WebP/APNG → drop into the
+project), with `renderFrameSequence(...)` for the live preview.
+
 ## Lip-sync
 ```dart
-import 'package:purrfect/src/animation/lipsync.dart';
+import 'package:pinsel/src/animation/lipsync.dart';
 
 // Easiest: closed + open mouth sprites → a looping talking animation
 LipSync.twoState(closedImage, openImage);
@@ -79,7 +102,7 @@ Save the result as `(b)<sprite>.apng` and it becomes the talking animation.
 
 ## Manual keyframe timeline (advanced)
 ```dart
-import 'package:purrfect/src/animation/timeline.dart';
+import 'package:pinsel/src/animation/timeline.dart';
 
 final tl = Timeline([
   Keyframe(time: 0.0, dy: 0,   ease: 'easeOutQuad'),
@@ -89,7 +112,7 @@ final tl = Timeline([
 final clip = tl.render(base, frames: 16, fps: 12);
 ```
 Each keyframe sets `dx, dy, scale, angle, opacity, hue` and the easing for the
-segment that starts at it. Purrfect interpolates the rest.
+segment that starts at it. Pinsel interpolates the rest.
 
 ## In the app
 The **Animate** screen: pick a preset or add effects, tune intensity/frames/fps,

@@ -1,6 +1,6 @@
-# Hosting Purrfect as a website
+# Hosting Pinsel as a website
 
-Purrfect compiles to a normal static web app (HTML/JS/Wasm + assets). Build it
+Pinsel compiles to a normal static web app (HTML/JS/Wasm + assets). Build it
 once, then drop the output on any static host. Everything runs **client-side** —
 no server, no backend, no uploads — so it's cheap (or free) to host and easy to
 share.
@@ -15,10 +15,10 @@ flutter build web --release
 
 Output lands in **`build/web/`**. That folder *is* the website.
 
-> **Hosting under a sub-path?** (e.g. `you.github.io/Purrfect-AO-Char-Maker/`)
+> **Hosting under a sub-path?** (e.g. `you.github.io/Pinsel-AO-Char-Maker/`)
 > pass a matching base href:
 > ```bash
-> flutter build web --release --base-href /Purrfect-AO-Char-Maker/
+> flutter build web --release --base-href /Pinsel-AO-Char-Maker/
 > ```
 > Hosting at a domain root (`example.com/`)? Use `--base-href /` (the default).
 
@@ -34,11 +34,11 @@ git push origin v0.1.0
 ```
 Then in your repo: **Settings → Pages → Source: "GitHub Actions"** (or the
 `gh-pages` branch, which the workflow populates). Your site appears at
-`https://<user>.github.io/Purrfect-AO-Char-Maker/`.
+`https://<user>.github.io/Pinsel-AO-Char-Maker/`.
 
 To do it by hand instead:
 ```bash
-flutter build web --release --base-href /Purrfect-AO-Char-Maker/
+flutter build web --release --base-href /Pinsel-AO-Char-Maker/
 # commit the contents of build/web to a `gh-pages` branch, or use:
 npx gh-pages -d build/web
 ```
@@ -65,7 +65,7 @@ Copy `build/web/` to your web root. Minimal nginx:
 ```nginx
 server {
   listen 80;
-  root /var/www/purrfect;       # contents of build/web
+  root /var/www/pinsel;       # contents of build/web
   index index.html;
   location / { try_files $uri $uri/ /index.html; }
 }

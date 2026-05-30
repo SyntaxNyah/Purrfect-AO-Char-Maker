@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:collection/collection.dart';
@@ -7,6 +8,7 @@ import 'package:provider/provider.dart';
 
 import '../../imaging/button_maker.dart' show IntRect;
 import '../../imaging/codecs.dart';
+import '../../imaging/color_ops.dart';
 import '../../imaging/compositor.dart';
 import '../../platform/folder_picker.dart';
 import '../app_state.dart';
@@ -15,9 +17,9 @@ import '../widgets/checker_image.dart';
 /// "Frankensprite" mixer: snip a region from one sprite and place it on another
 /// (e.g. one character's head on another's body), then save it as a new emote.
 ///
-/// The **body** is a sprite from your loaded project; the part you snip can come
-/// from the same project *or* from a **second folder** you dump in here as a
-/// "parts" source (kept completely separate from your project + export).
+/// Performance: the preview is **debounced** and rendered on a **downscaled**
+/// copy into a [ValueNotifier], so dragging a slider no longer re-decodes and
+/// re-composites at full resolution on every frame (only "Save" bakes full-res).
 class MixerScreen extends StatefulWidget {
   const MixerScreen({super.key});
 
@@ -35,12 +37,42 @@ class _MixerScreenState extends State<MixerScreen> {
   double _cx = 0.25, _cy = 0.0, _cw = 0.5, _ch = 0.45;
   // placement on the base (fractions) + transform
   double _px = 0.5, _py = 0.22, _scale = 1.0, _angle = 0, _opacity = 1.0;
+  // snip post-processing
+  bool _flipH = false, _flipV = false;
+  double _feather = 0;
+  double _snipHue = 0, _snipSat = 1, _snipBri = 1;
+  // output crop (fractions of the final image)
+  double _cropL = 0, _cropT = 0, _cropR = 0, _cropB = 0;
+
   final TextEditingController _name = TextEditingController(text: 'mix');
+  final ValueNotifier<Uint8List?> _preview = ValueNotifier<Uint8List?>(null);
+  Timer? _debounce;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _compute();
+    });
+  }
 
   @override
   void dispose() {
+    _debounce?.cancel();
+    _preview.dispose();
     _name.dispose();
     super.dispose();
+  }
+
+  void _schedule() {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 120), _compute);
+  }
+
+  Future<void> _compute() async {
+    final AppState app = context.read<AppState>();
+    final Uint8List? bytes = await _composite(app, preview: true);
+    if (mounted) _preview.value = bytes;
   }
 
   /// Base names available to snip from, given the selected parts source.
@@ -60,13 +92,19 @@ class _MixerScreenState extends State<MixerScreen> {
         : app.relForMixBase(_partsSource!, _overlay!);
   }
 
-  Future<Uint8List?> _composite(AppState app) async {
+  Future<Uint8List?> _composite(AppState app, {required bool preview}) async {
     final String? baseRel = _base == null ? null : app.relForBase(_base!);
     final String? ovRel = _overlayRel(app);
     if (baseRel == null || ovRel == null) return null;
-    final img.Image? base = await app.decodeFirstFrame(baseRel);
-    final img.Image? ov = await app.decodeFirstFrame(ovRel);
+    img.Image? base = await app.decodeFirstFrame(baseRel);
+    img.Image? ov = await app.decodeFirstFrame(ovRel);
     if (base == null || ov == null) return null;
+
+    // Live preview works on a downscaled copy; Save bakes full resolution.
+    if (preview) {
+      base = _downscale(base, 480);
+      ov = _downscale(ov, 480);
+    }
 
     final IntRect rect = IntRect(
       (_cx * ov.width).round().clamp(0, ov.width - 1),
@@ -77,18 +115,90 @@ class _MixerScreenState extends State<MixerScreen> {
     final CutResult cut =
         _ellipse ? Compositor.cutEllipse(ov, rect) : Compositor.cutRect(ov, rect);
 
-    final int topLeftX = (_px * base.width - cut.image.width * _scale / 2).round();
-    final int topLeftY = (_py * base.height - cut.image.height * _scale / 2).round();
-    final img.Image result = Compositor.place(
+    img.Image piece = cut.image;
+    if (_flipH) piece = _flip(piece, horizontal: true);
+    if (_flipV) piece = _flip(piece, horizontal: false);
+    if (_feather > 0.5) piece = _featherEdges(piece, _feather.round());
+    final List<ColorOp> snipOps = <ColorOp>[
+      if (_snipHue.abs() > 0.5)
+        ColorOp('hueShift', nums: <String, double>{'degrees': _snipHue}),
+      if ((_snipSat - 1).abs() > 0.01)
+        ColorOp('saturation', nums: <String, double>{'amount': _snipSat}),
+      if ((_snipBri - 1).abs() > 0.01)
+        ColorOp('brightness', nums: <String, double>{'amount': _snipBri}),
+    ];
+    if (snipOps.isNotEmpty) ImageOps.applyAll(piece, snipOps);
+
+    final int topLeftX = (_px * base.width - piece.width * _scale / 2).round();
+    final int topLeftY = (_py * base.height - piece.height * _scale / 2).round();
+    img.Image result = Compositor.place(
       base,
-      cut.image,
+      piece,
       x: topLeftX,
       y: topLeftY,
       scale: _scale,
       angle: _angle,
       opacity: _opacity,
     );
+
+    if (_cropL > 0 || _cropT > 0 || _cropR > 0 || _cropB > 0) {
+      final int x0 = (_cropL * result.width).round();
+      final int y0 = (_cropT * result.height).round();
+      final int x1 = result.width - (_cropR * result.width).round();
+      final int y1 = result.height - (_cropB * result.height).round();
+      final int w = x1 - x0, h = y1 - y0;
+      if (w >= 1 && h >= 1) {
+        result = img.copyCrop(result, x: x0, y: y0, width: w, height: h);
+      }
+    }
     return Codecs.encodePng(result);
+  }
+
+  // ---- image helpers (operate on owned copies, never the decode cache) -------
+
+  img.Image _downscale(img.Image im, int maxEdge) {
+    final int longest = im.width > im.height ? im.width : im.height;
+    if (longest <= maxEdge) return im;
+    final double s = maxEdge / longest;
+    return img.copyResize(im,
+        width: (im.width * s).round(),
+        height: (im.height * s).round(),
+        interpolation: img.Interpolation.average);
+  }
+
+  img.Image _flip(img.Image im, {required bool horizontal}) {
+    final img.Image out = img.Image(width: im.width, height: im.height, numChannels: 4);
+    for (int y = 0; y < im.height; y++) {
+      for (int x = 0; x < im.width; x++) {
+        final img.Pixel p = im.getPixel(
+            horizontal ? im.width - 1 - x : x, horizontal ? y : im.height - 1 - y);
+        out.setPixelRgba(x, y, p.r.toInt(), p.g.toInt(), p.b.toInt(), p.a.toInt());
+      }
+    }
+    return out;
+  }
+
+  img.Image _featherEdges(img.Image im, int radius) {
+    if (radius <= 0) return im;
+    final img.Image src = im.clone();
+    for (int y = 0; y < im.height; y++) {
+      for (int x = 0; x < im.width; x++) {
+        final img.Pixel p = src.getPixel(x, y);
+        if (p.a.toInt() == 0) continue;
+        int opaque = 0, total = 0;
+        for (int dy = -radius; dy <= radius; dy++) {
+          for (int dx = -radius; dx <= radius; dx++) {
+            total++;
+            final int xx = x + dx, yy = y + dy;
+            if (xx < 0 || yy < 0 || xx >= im.width || yy >= im.height) continue;
+            if (src.getPixel(xx, yy).a.toInt() > 8) opaque++;
+          }
+        }
+        final int na = (p.a.toInt() * (opaque / total)).round().clamp(0, 255);
+        im.setPixelRgba(x, y, p.r.toInt(), p.g.toInt(), p.b.toInt(), na);
+      }
+    }
+    return im;
   }
 
   Future<void> _loadPartsFolder(AppState app) async {
@@ -100,9 +210,32 @@ class _MixerScreenState extends State<MixerScreen> {
     if (app.mixSources.isNotEmpty) {
       setState(() {
         _partsSource = app.mixSources.last.label;
-        _overlay = null; // re-pick within the new source
+        _overlay = null;
       });
     }
+    _schedule();
+  }
+
+  void _reset() {
+    setState(() {
+      _cx = 0.25;
+      _cy = 0;
+      _cw = 0.5;
+      _ch = 0.45;
+      _px = 0.5;
+      _py = 0.22;
+      _scale = 1;
+      _angle = 0;
+      _opacity = 1;
+      _flipH = false;
+      _flipV = false;
+      _feather = 0;
+      _snipHue = 0;
+      _snipSat = 1;
+      _snipBri = 1;
+      _cropL = _cropT = _cropR = _cropB = 0;
+    });
+    _schedule();
   }
 
   @override
@@ -111,7 +244,6 @@ class _MixerScreenState extends State<MixerScreen> {
     final List<String> bases = app.spriteBases();
     _base ??= bases.isNotEmpty ? bases.first : null;
 
-    // Keep the parts source / overlay valid as sources come and go.
     if (_partsSource != null &&
         app.mixSources.every((MixSource m) => m.label != _partsSource)) {
       _partsSource = null;
@@ -129,17 +261,17 @@ class _MixerScreenState extends State<MixerScreen> {
             padding: const EdgeInsets.all(12),
             child: bases.isEmpty
                 ? const Center(child: Text('Import sprites first.'))
-                : FutureBuilder<Uint8List?>(
-                    future: _composite(app),
-                    builder: (BuildContext c, AsyncSnapshot<Uint8List?> s) => ClipRRect(
+                : ValueListenableBuilder<Uint8List?>(
+                    valueListenable: _preview,
+                    builder: (_, Uint8List? b, __) => ClipRRect(
                       borderRadius: BorderRadius.circular(12),
-                      child: CheckerImage(bytes: s.data),
+                      child: CheckerImage(bytes: b),
                     ),
                   ),
           ),
         ),
         const VerticalDivider(width: 1),
-        SizedBox(width: 360, child: _controls(app, bases, overlayBases)),
+        SizedBox(width: 372, child: _controls(app, bases, overlayBases)),
       ],
     );
   }
@@ -148,18 +280,26 @@ class _MixerScreenState extends State<MixerScreen> {
     return ListView(
       padding: const EdgeInsets.all(12),
       children: <Widget>[
-        Text('Frankensprite mixer', style: Theme.of(context).textTheme.titleMedium),
+        Row(children: <Widget>[
+          Expanded(
+            child: Text('Frankensprite mixer',
+                style: Theme.of(context).textTheme.titleMedium),
+          ),
+          TextButton(onPressed: _reset, child: const Text('Reset')),
+        ]),
         const SizedBox(height: 8),
         _howItWorks(),
         const SizedBox(height: 12),
 
-        // ---- 1. Body: always from the loaded project ----
+        // ---- 1. Body ----
         Text('1 · Body', style: Theme.of(context).textTheme.labelLarge),
-        _picker('Body (from your project)', _base, bases,
-            (String? v) => setState(() => _base = v)),
+        _picker('Body (from your project)', _base, bases, (String? v) {
+          setState(() => _base = v);
+          _schedule();
+        }),
         const Divider(),
 
-        // ---- 2. The part to snip: project OR a second folder ----
+        // ---- 2. The part to snip ----
         Text('2 · Part to graft on', style: Theme.of(context).textTheme.labelLarge),
         const SizedBox(height: 4),
         _partsSourcePicker(app),
@@ -182,29 +322,67 @@ class _MixerScreenState extends State<MixerScreen> {
         overlayBases.isEmpty
             ? const Text('That source has no sprites yet.',
                 style: TextStyle(fontSize: 12, color: Colors.orange))
-            : _picker('Snip from', _overlay, overlayBases,
-                (String? v) => setState(() => _overlay = v)),
-        SwitchListTile(
-          dense: true,
-          contentPadding: EdgeInsets.zero,
-          title: const Text('Ellipse snip (good for heads)'),
-          value: _ellipse,
-          onChanged: (bool v) => setState(() => _ellipse = v),
-        ),
+            : _picker('Snip from', _overlay, overlayBases, (String? v) {
+                setState(() => _overlay = v);
+                _schedule();
+              }),
+        _switch('Ellipse snip (good for heads)', _ellipse, (bool v) => _ellipse = v),
         const Divider(),
-        Text('Snip region (of the part)', style: Theme.of(context).textTheme.labelLarge),
-        _slider('X', _cx, (double v) => setState(() => _cx = v)),
-        _slider('Y', _cy, (double v) => setState(() => _cy = v)),
-        _slider('Width', _cw, (double v) => setState(() => _cw = v), min: 0.02, max: 1),
-        _slider('Height', _ch, (double v) => setState(() => _ch = v), min: 0.02, max: 1),
+
+        // ---- 3. Snip region (crop the part) ----
+        Text('3 · Snip region (crop the part)',
+            style: Theme.of(context).textTheme.labelLarge),
+        _slider('X', _cx, (double v) => _cx = v),
+        _slider('Y', _cy, (double v) => _cy = v),
+        _slider('Width', _cw, (double v) => _cw = v, min: 0.02, max: 1),
+        _slider('Height', _ch, (double v) => _ch = v, min: 0.02, max: 1),
+        Row(children: <Widget>[
+          Expanded(child: _switch('Flip H', _flipH, (bool v) => _flipH = v)),
+          Expanded(child: _switch('Flip V', _flipV, (bool v) => _flipV = v)),
+        ]),
+        _slider('Feather', _feather, (double v) => _feather = v, min: 0, max: 6),
         const Divider(),
-        Text('Placement (on the body)', style: Theme.of(context).textTheme.labelLarge),
-        _slider('Pos X', _px, (double v) => setState(() => _px = v)),
-        _slider('Pos Y', _py, (double v) => setState(() => _py = v)),
-        _slider('Scale', _scale, (double v) => setState(() => _scale = v), min: 0.1, max: 3),
-        _slider('Rotate', _angle, (double v) => setState(() => _angle = v), min: -180, max: 180),
-        _slider('Opacity', _opacity, (double v) => setState(() => _opacity = v)),
+
+        // ---- 4. Match the part's colour to the body ----
+        Text('4 · Recolour the part (match the body)',
+            style: Theme.of(context).textTheme.labelLarge),
+        _slider('Hue', _snipHue, (double v) => _snipHue = v, min: -180, max: 180),
+        _slider('Saturation', _snipSat, (double v) => _snipSat = v, min: 0, max: 2),
+        _slider('Brightness', _snipBri, (double v) => _snipBri = v, min: 0, max: 2),
         const Divider(),
+
+        // ---- 5. Placement ----
+        Row(children: <Widget>[
+          Expanded(
+            child: Text('5 · Placement (on the body)',
+                style: Theme.of(context).textTheme.labelLarge),
+          ),
+          TextButton(
+            onPressed: () {
+              setState(() {
+                _px = 0.5;
+                _py = 0.5;
+              });
+              _schedule();
+            },
+            child: const Text('Center'),
+          ),
+        ]),
+        _slider('Pos X', _px, (double v) => _px = v),
+        _slider('Pos Y', _py, (double v) => _py = v),
+        _slider('Scale', _scale, (double v) => _scale = v, min: 0.1, max: 3),
+        _slider('Rotate', _angle, (double v) => _angle = v, min: -180, max: 180),
+        _slider('Opacity', _opacity, (double v) => _opacity = v),
+        const Divider(),
+
+        // ---- 6. Crop the final result ----
+        Text('6 · Crop output', style: Theme.of(context).textTheme.labelLarge),
+        _slider('Left', _cropL, (double v) => _cropL = v, min: 0, max: 0.45),
+        _slider('Top', _cropT, (double v) => _cropT = v, min: 0, max: 0.45),
+        _slider('Right', _cropR, (double v) => _cropR = v, min: 0, max: 0.45),
+        _slider('Bottom', _cropB, (double v) => _cropB = v, min: 0, max: 0.45),
+        const Divider(),
+
         TextField(
           controller: _name,
           decoration: const InputDecoration(labelText: 'New sprite name'),
@@ -212,17 +390,17 @@ class _MixerScreenState extends State<MixerScreen> {
         const SizedBox(height: 8),
         FilledButton.icon(
           onPressed: () async {
-            final Uint8List? png = await _composite(app);
+            final Uint8List? png = await _composite(app, preview: false);
             if (png != null) await app.addCompositeSprite(_name.text, png);
           },
           icon: const Icon(Icons.save_rounded),
           label: const Text('Save as new emote'),
         ),
+        const SizedBox(height: 24),
       ],
     );
   }
 
-  /// A short, friendly explanation of the two-folder workflow.
   Widget _howItWorks() {
     return Container(
       padding: const EdgeInsets.all(10),
@@ -249,8 +427,6 @@ class _MixerScreenState extends State<MixerScreen> {
     );
   }
 
-  /// Dropdown to choose where the snipped part comes from, plus a remove (✕)
-  /// affordance for loaded folders.
   Widget _partsSourcePicker(AppState app) {
     final List<DropdownMenuItem<String?>> items = <DropdownMenuItem<String?>>[
       const DropdownMenuItem<String?>(value: null, child: Text('This project')),
@@ -271,10 +447,13 @@ class _MixerScreenState extends State<MixerScreen> {
                 isExpanded: true,
                 value: _partsSource,
                 items: items,
-                onChanged: (String? v) => setState(() {
-                  _partsSource = v;
-                  _overlay = null;
-                }),
+                onChanged: (String? v) {
+                  setState(() {
+                    _partsSource = v;
+                    _overlay = null;
+                  });
+                  _schedule();
+                },
               ),
             ),
           ),
@@ -290,6 +469,7 @@ class _MixerScreenState extends State<MixerScreen> {
                 _overlay = null;
               });
               app.removeMixSource(label);
+              _schedule();
             },
           ),
       ],
@@ -316,7 +496,19 @@ class _MixerScreenState extends State<MixerScreen> {
         ),
       );
 
-  Widget _slider(String label, double v, ValueChanged<double> onChanged,
+  Widget _switch(String label, bool value, ValueChanged<bool> assign) =>
+      SwitchListTile(
+        dense: true,
+        contentPadding: EdgeInsets.zero,
+        title: Text(label, style: const TextStyle(fontSize: 13)),
+        value: value,
+        onChanged: (bool v) {
+          setState(() => assign(v));
+          _schedule();
+        },
+      );
+
+  Widget _slider(String label, double v, void Function(double) assign,
           {double min = 0, double max = 1}) =>
       Row(
         children: <Widget>[
@@ -326,7 +518,10 @@ class _MixerScreenState extends State<MixerScreen> {
               value: v.clamp(min, max),
               min: min,
               max: max,
-              onChanged: onChanged,
+              onChanged: (double nv) {
+                setState(() => assign(nv));
+                _schedule();
+              },
             ),
           ),
         ],

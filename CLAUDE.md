@@ -1,4 +1,4 @@
-# CLAUDE.md — developer guide for the Purrfect AO Char Maker
+# CLAUDE.md — developer guide for the Pinsel AO Char Maker
 
 This file is the working manual for anyone (especially Claude) building features
 in this repo. It explains the principles, the build, **every module and its
@@ -297,7 +297,7 @@ The central model.
   `emoteNameSets`, `gradientMapOp(g,{strength})`, `totalCount`.
 
 ### plugins/pack.dart & extension_registry.dart
-- `class PurrfectPack(...)` — `.fromJsonString/fromJson`, `.toJsonString/toJson`,
+- `class PinselPack(...)` — `.fromJsonString/fromJson`, `.toJsonString/toJson`,
   `.itemCount`. Fields: colorPresets, palettes, gradients, animPresets,
   emoteNameSets.
 - `ExtensionRegistry.instance` — merged getters (`colorPresets`, `palettes`,
@@ -327,6 +327,11 @@ The central model.
     and `applyEdit` both use it, then refresh `scan` from `_projectFiles()`. This
     fixes the old bug where WebP sprites (the default!) were recoloured into a
     phantom `.apng` while the original `.webp` — still referenced — was untouched.
+  - **Frame-by-frame**: `spriteFiles()` lists project frames; `renderFrameSequence`
+    (preview) / `saveFrameSequence(rels,{fps,reverse,pingPong,align,prefix,name})`
+    assemble chosen sprites into ONE animation (normalise to a shared canvas →
+    order → encode WebP/APNG). NB `AnimClip.toImage()` appends frames into the
+    first frame's image, so `saveFrameSequence` **clones** each frame.
   - **Mixer parts sources**: `importMixParts(files,{label})` loads a SECOND folder
     just to snip from (`mixSources`/`MixSource`, resolved via `relForMixBase`,
     removed via `removeMixSource`). It's stashed under `_mixPrefix` in the
@@ -337,10 +342,22 @@ The central model.
     section — inline hex field and a `flutter_colorpicker` hue-wheel dialog
     (`hexInputBar`, HEX/RGB/HSV labels); picks become `colorize`/`tint`/
     `solidColor`/`gradientMap` ops on the blend stack.
+  - `animation_studio`: two modes via a `SegmentedButton` — **Effects**
+    (procedural recipes) and **Frames** (frame-by-frame: pick/reorder sprite
+    frames, fps/reverse/ping-pong/align, save). Both share the debounced render +
+    `ValueNotifier` playback loop.
   - `edit`: crop / auto-trim / background removal (drives `SpriteEdit`).
   - `mixer`: frankensprite. Body = a project sprite; the part to graft comes from
     *This project* or a **2nd folder loaded in-screen** (`importMixParts` →
     `mixSources`, kept out of the project/export). Source-tagged pickers + ✕.
+    Tools: snip-crop (X/Y/W/H + ellipse), flip H/V, feather, recolour the snip
+    (hue/sat/bri), placement, **output crop**, Center/Reset. Preview is debounced
+    + downscaled into a `ValueNotifier` (only Save bakes full-res).
+- `app.dart` (`HomeShell`) hosts a global `CallbackShortcuts` map (undo/redo,
+  import/export, add emote, prev/next emote, `Ctrl/⌘+1..9` screen jumps, F1 help)
+  and a `_TopBar` with undo/redo + import/export buttons (gated on
+  `AppState.canUndo`/`canRedo`/`hasProject` via a `Selector`). Document new keys
+  in `docs/SHORTCUTS.md`.
 
 ---
 
@@ -386,8 +403,15 @@ round-trip test. Preserve anything you don't model in `unknownSections`/`extra`.
 - **Platform seams:** never import `*_io.dart`/`*_web.dart` directly — import the
   factory (`workspace_factory.dart`, `save_file.dart`, `webp_codec.dart`).
 - **Real-time preview** runs the pipeline on a **downscaled** copy
-  (`AppState.previewWithPipeline`), then "Apply" bakes at full res. Keep heavy
-  work off the main path or move it into isolates.
+  (`AppState.previewWithPipeline`/`previewEdit`, and the Mixer's debounced
+  preview), then "Apply"/"Save" bakes at full res. Keep heavy work off the main
+  path or move it into isolates.
+- **Per-pixel hot path:** `ImageOps._eachPixel` iterates the frame's **sequential
+  pixel cursor** and reuses one `_Rgba` (no per-pixel `getPixel/setPixelRgba`
+  random access or allocation). Every colour op + animation frame funnels
+  through it, so keep it allocation-free. Long bake loops (`applyPipeline`,
+  `applyEdit`, `BulkProcessor.run`) `await Future.delayed(Duration.zero)`
+  periodically so the progress UI repaints instead of freezing.
 - **Tests:** `flutter test`. Add a test when you touch the ini model, scanner,
   colour ops, or animation engine.
 ```
