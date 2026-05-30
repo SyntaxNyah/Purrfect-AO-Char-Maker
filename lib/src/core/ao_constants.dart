@@ -166,6 +166,36 @@ enum ScalingMode {
   }
 }
 
+/// How an auto-generated **button** or **char_icon** frames the sprite.
+///
+/// AO emote buttons and the character-select icon look best showing the
+/// character's *expression* (their face), not their whole body — so [head] is
+/// the default. [full] keeps the legacy "square around the whole sprite".
+enum CropFraming {
+  /// Crop to the character's head/face (detected from the alpha silhouette).
+  /// The default for both buttons and the char icon.
+  head('head', 'Head / face'),
+
+  /// Square around the whole (auto-trimmed) sprite — the legacy framing.
+  full('full', 'Full body');
+
+  const CropFraming(this.id, this.label);
+
+  final String id;
+  final String label;
+
+  /// The default framing used everywhere a button/icon is auto-generated.
+  static const CropFraming defaultValue = CropFraming.head;
+
+  static CropFraming fromId(String id) {
+    final String norm = id.trim().toLowerCase();
+    for (final CropFraming f in CropFraming.values) {
+      if (f.id == norm) return f;
+    }
+    return defaultValue;
+  }
+}
+
 /// Per-frame effect categories that live in `[<emote>_Frame*]` sections.
 enum FrameEffectKind {
   sfx('FrameSFX'),
@@ -241,8 +271,21 @@ class CharFolder {
   /// Default button edge the app generates at (crisp on modern/high-DPI themes).
   static const int defaultButtonSize = 128;
 
+  /// Allowed button edge range for the Button Studio slider.
+  static const int minButtonSize = 24;
+  static const int maxButtonSize = 256;
+
   /// Recommended minimum char_icon edge in pixels (1:1).
   static const int recommendedIconSize = 60;
+
+  /// Default char_icon edge the app generates at. AO themes render the icon
+  /// small, so 40 keeps files tiny by default; raise it (up to [maxIconSize])
+  /// for crisp HiDPI icons.
+  static const int defaultIconSize = 40;
+
+  /// Allowed char_icon edge range (40–128) for the customiser.
+  static const int minIconSize = 40;
+  static const int maxIconSize = 128;
 
   /// Folders that should never be treated as emote sprite sources when scanning.
   static const List<String> ignoredScanDirs = <String>[

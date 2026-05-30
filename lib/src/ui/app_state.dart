@@ -49,6 +49,15 @@ class MixSource {
   List<String> get bases => groups.map((SpriteGroup g) => g.base).toList();
 }
 
+/// An optional overlay image (a border/frame to lay over a button or icon, or a
+/// background to sit behind the sprite). Holds the raw [bytes] (for a UI
+/// thumbnail) and the decoded [image] (for compositing). Empty when unset.
+class OverlaySlot {
+  Uint8List? bytes;
+  img.Image? image;
+  bool get isSet => image != null;
+}
+
 /// The single source of UI truth. Holds the working project (an in-memory
 /// workspace so behaviour is identical on every platform), the parsed/auto-built
 /// [Character], undo/redo, the live colour pipeline, and all the actions the
@@ -71,6 +80,63 @@ class AppState extends ChangeNotifier {
 
   /// Decoded first-frame cache (rel -> image) to keep previews snappy.
   final Map<String, img.Image?> _decodeCache = <String, img.Image?>{};
+
+  /// Encoded plain-sprite preview cache (`rel@maxEdge` -> PNG). Lets the Emotes
+  /// screen show a sprite without re-decoding/re-encoding on every rebuild — so
+  /// typing in a field never re-bakes the preview.
+  final Map<String, Uint8List?> _previewCache = <String, Uint8List?>{};
+
+  /// Bumps whenever sprite *pixels/paths* change (recolour, edit, convert,
+  /// rename, new composite…). UI previews watch this to know when to reload,
+  /// without rebuilding on unrelated changes like typing an emote name.
+  int spriteRevision = 0;
+
+  // ---- Button & char-icon generation settings (drive the export + studio) ----
+  // Public so the Button Studio can tune them with zero rebuild overhead; the
+  // export (`buildOutput`) reads them on demand.
+
+  /// Generate `emotions/buttonN_off.png` for every emote on export.
+  bool generateButtons = true;
+  int buttonSize = CharFolder.defaultButtonSize;
+
+  /// Button framing — **head/face by default** (AO buttons show expressions).
+  CropFraming buttonFraming = CropFraming.defaultValue;
+  double buttonZoom = 1.0;
+
+  /// Generate `char_icon.png` for the character-select screen on export.
+  bool generateCharIcon = true;
+  int iconSize = CharFolder.defaultIconSize; // 40 by default (customisable 40–128)
+  CropFraming iconFraming = CropFraming.defaultValue;
+  double iconZoom = 1.0;
+
+  /// Which emote (0-based) the char_icon is rendered from.
+  int iconSourceEmote = 0;
+
+  /// Nudge the crop square (fractions of its side, −0.5..0.5) so you can
+  /// re-centre the framed face/body on a button or the icon.
+  double buttonOffsetX = 0;
+  double buttonOffsetY = 0;
+  double iconOffsetX = 0;
+  double iconOffsetY = 0;
+
+  /// Optional art composited into every button: [buttonBg] sits behind the
+  /// sprite, [buttonFg] is laid **on top** (a KFO-style border/frame). The icon
+  /// has its own [iconBg]/[iconFg] so it can use a different (or no) border.
+  final OverlaySlot buttonBg = OverlaySlot();
+  final OverlaySlot buttonFg = OverlaySlot();
+  final OverlaySlot iconBg = OverlaySlot();
+  final OverlaySlot iconFg = OverlaySlot();
+
+  /// Load (or clear, with null [bytes]) an overlay [slot]. [ext] helps decode.
+  void setOverlay(OverlaySlot slot, Uint8List? bytes, {String ext = 'png'}) {
+    slot.bytes = bytes;
+    slot.image = bytes == null ? null : Codecs.decodeFirstFrame(bytes, ext: ext);
+    notifyListeners();
+  }
+
+  /// Push the latest button/icon settings (the UI mutates fields directly for a
+  /// lag-free studio); call this when something else needs to react.
+  void notifyButtonSettings() => notifyListeners();
 
   /// Extra sprite folders loaded just for the Mixer (the "parts" you graft on).
   /// Stored separately so they never pollute the project or its export.
@@ -122,7 +188,7 @@ class AppState extends ChangeNotifier {
       ];
 
   Future<void> _rebuild() async {
-    _decodeCache.clear();
+    _invalidateImageCaches();
     final List<String> files = await _projectFiles();
     scan = _scanner.fromPaths(files);
 
@@ -264,6 +330,18 @@ class AppState extends ChangeNotifier {
     return Codecs.encodePng(work);
   }
 
+  /// Cached PNG preview of a sprite with **no** pipeline — for the Emotes screen.
+  /// Memoised per `rel@maxEdge` (cleared on [spriteRevision] changes) so showing
+  /// the selected sprite never re-decodes/re-encodes while you type in a field.
+  Future<Uint8List?> previewSprite(String rel, {int maxEdge = 1024}) async {
+    final String key = '$rel@$maxEdge';
+    if (_previewCache.containsKey(key)) return _previewCache[key];
+    final Uint8List? bytes =
+        await previewWithPipeline(rel, const <ColorOp>[], maxEdge: maxEdge);
+    _previewCache[key] = bytes;
+    return bytes;
+  }
+
   /// Bulk-rename emote names (and optionally their sprite files) using [spec].
   /// Returns the number of emotes whose name changed.
   Future<int> bulkRename(RenameSpec spec) async {
@@ -292,7 +370,7 @@ class AppState extends ChangeNotifier {
     if (movedFiles) {
       // Refresh sprite groups from the renamed files (keeps edits intact).
       scan = _scanner.fromPaths(await _projectFiles());
-      _decodeCache.clear();
+      _invalidateImageCaches();
     }
     history.push(character!);
     _setBusy(false, 'Renamed $changed emote(s).');
@@ -386,7 +464,7 @@ class AppState extends ChangeNotifier {
     final String safe = name.trim().isEmpty ? 'mix' : name.trim();
     final String rel = '$safe.png';
     await workspace.writeBytes(rel, png);
-    _decodeCache.remove(rel);
+    _invalidateImageCaches();
 
     // Register it with the scan so previews/buttons resolve it.
     final SpriteGroup group = SpriteGroup(safe)
@@ -466,7 +544,7 @@ class AppState extends ChangeNotifier {
       // Keep the UI responsive between (heavy) sprite groups.
       await Future<void>.delayed(Duration.zero);
     }
-    _decodeCache.clear();
+    _invalidateImageCaches();
     scan = _scanner.fromPaths(await _projectFiles());
     _setBusy(false, 'Edited $edited sprite file(s).');
     return edited;
@@ -575,21 +653,75 @@ class AppState extends ChangeNotifier {
       if (done % 3 == 0) await Future<void>.delayed(Duration.zero);
     }
 
-    _decodeCache.clear();
+    _invalidateImageCaches();
     // Paths can shift on fallback (webp → apng), so refresh the scan.
     scan = _scanner.fromPaths(await _projectFiles());
     _setBusy(false, 'Recoloured $ok sprite(s).');
     return ok;
   }
 
-  /// Preview the auto-generated button for the selected emote at [size] px.
+  /// Preview the auto-generated **button** for the selected emote at [size] px,
+  /// using the current [buttonFraming]/[buttonZoom]. Reuses the decode cache.
   Future<Uint8List?> previewAutoButton(int size) async {
     final Emote? e = current;
     if (e == null) return null;
     final String? rel = spriteRelFor(e);
     if (rel == null) return null;
-    final Uint8List bytes = await workspace.readBytes(rel);
-    return ButtonMaker.renderAuto(bytes, p.extension(rel).replaceFirst('.', ''), size);
+    final img.Image? frame = await decodeFirstFrame(rel);
+    if (frame == null) return null;
+    return ButtonMaker.renderFramed(frame, size,
+        framing: buttonFraming,
+        zoom: buttonZoom,
+        offsetX: buttonOffsetX,
+        offsetY: buttonOffsetY,
+        background: buttonBg.image,
+        foreground: buttonFg.image);
+  }
+
+  /// The emote the char_icon is rendered from: [iconSourceEmote] (clamped), or
+  /// the next emote with a sprite so the icon is never blank.
+  Emote? iconEmote() {
+    final List<Emote>? es = character?.emotes;
+    if (es == null || es.isEmpty) return null;
+    final int start = iconSourceEmote.clamp(0, es.length - 1);
+    for (int k = 0; k < es.length; k++) {
+      final Emote e = es[(start + k) % es.length];
+      if (spriteRelFor(e) != null) return e;
+    }
+    return es[start];
+  }
+
+  /// Preview the auto-generated **char_icon** at [iconSize] px, using the current
+  /// [iconFraming]/[iconZoom] and [iconSourceEmote].
+  Future<Uint8List?> previewCharIcon() async {
+    final Emote? e = iconEmote();
+    if (e == null) return null;
+    final String? rel = spriteRelFor(e);
+    if (rel == null) return null;
+    final img.Image? frame = await decodeFirstFrame(rel);
+    if (frame == null) return null;
+    return ButtonMaker.renderFramed(frame, iconSize,
+        framing: iconFraming,
+        zoom: iconZoom,
+        offsetX: iconOffsetX,
+        offsetY: iconOffsetY,
+        background: iconBg.image,
+        foreground: iconFg.image);
+  }
+
+  /// Bake `char_icon.png` into the project root (so it's part of the export) and
+  /// download/save it. Returns the saved path, or null if nothing to render.
+  Future<String?> saveCharIcon() async {
+    final Uint8List? png = await previewCharIcon();
+    if (png == null) {
+      status = 'No sprite to make a char_icon from.';
+      notifyListeners();
+      return null;
+    }
+    await workspace.writeBytes(CharFolder.charIcon, png);
+    _invalidateImageCaches();
+    _setBusy(false, 'Saved ${CharFolder.charIcon} (${iconSize}px).');
+    return saveBytes(CharFolder.charIcon, png);
   }
 
   /// Convert every sprite to [format] (with optional WebP settings).
@@ -616,7 +748,7 @@ class AppState extends ChangeNotifier {
       deleteOriginalOnConvert: deleteOriginal,
       onProgress: (int d, int t, String l) => _progress(d, t, 'Convert'),
     );
-    _decodeCache.clear();
+    _invalidateImageCaches();
     if (deleteOriginal) await _rebuild();
     final int ok = res.where((BulkResult r) => r.ok).length;
     final int fail = res.length - ok;
@@ -693,7 +825,7 @@ class AppState extends ChangeNotifier {
     final String spriteName = e.sprite.isEmpty ? 'anim' : e.sprite;
     final String outRel = '$prefix$spriteName.$ext';
     await workspace.writeBytes(outRel, bytes);
-    _decodeCache.clear();
+    _invalidateImageCaches();
     final String note = ext == 'webp'
         ? 'WebP'
         : 'APNG (WebP encoder not found here — release builds ship with it)';
@@ -839,7 +971,7 @@ class AppState extends ChangeNotifier {
     final String safe = name.trim().isEmpty ? 'frames' : name.trim();
     final String outRel = '$prefix$safe.$ext';
     await workspace.writeBytes(outRel, bytes);
-    _decodeCache.clear();
+    _invalidateImageCaches();
     scan = _scanner.fromPaths(await _projectFiles());
     final String note = ext == 'webp' ? 'WebP' : 'APNG (WebP encoder unavailable here)';
     _setBusy(false, 'Saved $outRel — ${ordered.length} frames as $note.');
@@ -855,13 +987,46 @@ class AppState extends ChangeNotifier {
   Future<MemoryWorkspace> buildOutput() async {
     final MemoryWorkspace out = MemoryWorkspace();
     if (character == null || scan == null) return out;
-    final Organizer organizer = Organizer(buttonRenderer: ButtonMaker.renderAuto);
+    // Closures capture the studio's offsets + overlays; buttons and the icon
+    // get their own so each can carry a different (or no) border.
+    final Organizer organizer = Organizer(
+      buttonRenderer: (Uint8List b, String e, int s, CropFraming f, double z) =>
+          ButtonMaker.renderAutoOverlaid(b, e, s,
+              framing: f,
+              zoom: z,
+              offsetX: buttonOffsetX,
+              offsetY: buttonOffsetY,
+              background: buttonBg.image,
+              foreground: buttonFg.image),
+      iconRenderer: (Uint8List b, String e, int s, CropFraming f, double z) =>
+          ButtonMaker.renderAutoOverlaid(b, e, s,
+              framing: f,
+              zoom: z,
+              offsetX: iconOffsetX,
+              offsetY: iconOffsetY,
+              background: iconBg.image,
+              foreground: iconFg.image),
+    );
     await organizer.organize(
       character: character!,
       scan: scan!,
       source: workspace,
       target: out,
-      config: OrganizeConfig(targetCharDir: character!.options.name),
+      config: OrganizeConfig(
+        targetCharDir: character!.options.name,
+        generateButtons: generateButtons,
+        buttonSize: buttonSize,
+        buttonFraming: buttonFraming,
+        buttonZoom: buttonZoom,
+        generateCharIcon: generateCharIcon,
+        iconSize: iconSize,
+        iconFraming: iconFraming,
+        iconZoom: iconZoom,
+        iconSourceEmote: iconSourceEmote,
+        // Export builds a fresh folder, so missing buttons/icon are always
+        // generated with the studio settings; any button/char_icon the user
+        // imported (or saved here) is copied in first and kept as-is.
+      ),
       onProgress: (int d, int t, String l) => _progress(d, t, l),
     );
     return out;
@@ -892,6 +1057,15 @@ class AppState extends ChangeNotifier {
   // ---------------------------------------------------------------------------
   // helpers
   // ---------------------------------------------------------------------------
+
+  /// Drop cached decoded frames + encoded previews and signal that sprite pixels
+  /// or paths changed (so previews reload). Call this instead of clearing the
+  /// decode cache directly whenever sprite files are written/moved.
+  void _invalidateImageCaches() {
+    _decodeCache.clear();
+    _previewCache.clear();
+    spriteRevision++;
+  }
 
   void _setBusy(bool b, String msg) {
     busy = b;

@@ -8,6 +8,7 @@ import '../../discovery/character_builder.dart';
 import '../../platform/folder_picker.dart';
 import '../../plugins/extension_registry.dart';
 import '../app_state.dart';
+import '../credits.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -111,6 +112,8 @@ class HomeScreen extends StatelessWidget {
             ),
           ),
         ),
+        const SizedBox(height: 12),
+        const CreditsCard(),
       ],
     );
   }

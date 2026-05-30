@@ -25,10 +25,13 @@ Runs natively on **Windows, Linux, macOS, Android, iOS**, and as a **website**
   animation formats — then writes a correct `char.ini` for you.
 - **Auto folders + file moving.** Builds the character folder, an `emotions/`
   folder, and lays everything out the way AO expects.
-- **Auto buttons.** Generates `buttonN_off.png` icons for every emote
-  (trim → centre square → scale). Drop your own in to override.
+- **Auto buttons + char_icon.** Generates `buttonN_off.png` for every emote
+  **and** the character-select `char_icon.png`. They frame the character's
+  **face by default** (AO buttons show expressions, not whole bodies); switch to
+  full-body, tune the size/zoom/position, or lay a **border on top** (KFO-style).
+  Drop your own in to override.
 - **Smart guesses.** Friendly emote names, preanimation detection, and optional
-  sound-effect guesses — all adjustable.
+  sound-effect guesses (keyword → SFX, e.g. *slam* → desk-slam) — all adjustable.
 
 ### Customize everything
 - **Real-time Colour Lab** — hue / saturation / brightness / contrast with live
@@ -47,12 +50,18 @@ Runs natively on **Windows, Linux, macOS, Android, iOS**, and as a **website**
 - **Crop, auto-trim & background removal** — crop sprites (uniform across all
   frames + (a)/(b)), trim transparent margins, or knock out a flat background by
   flood-filling from the corners.
-- **Sprite mixer ("frankensprite")** — snip a region from one sprite (e.g. a
-  head) and drop it onto another (a body), with position/scale/rotate/opacity,
-  then save it as a new emote. Combine **two characters** by loading a **second
-  sprite folder** right in the Mixer (kept separate from your project + export).
-  Tools: snip-crop + ellipse, **flip H/V**, **feather**, **recolour the snip** to
-  match the body, and **crop the output** — with a smooth, debounced preview.
+- **Full char.ini editor** — a dedicated **Character** tab for the `[Options]`
+  block: name, showname, `needs_showname`, side, **blips**, **chat**, category,
+  scaling, stretch, and more. The auto-builder fills defaults; tweak any of them
+  here (imported custom keys are preserved).
+- **Sprite mixer ("frankensprite")** — **mouse-driven**: drag parts to move,
+  drag a corner / scroll to scale, drag a handle to rotate (sliders too). Snip a
+  region from one sprite (e.g. a head) and drop it onto a body — **stack as many
+  snips as you want** — then save it as a new emote. Combine **two characters**
+  by loading a **second sprite folder** in the Mixer (kept out of your project +
+  export). A **Layers** mode "links everything" for art that ships each feature
+  as a separate, pre-aligned file (eyes, brows, body, an arm…). Tools: snip-crop
+  + ellipse, **flip H/V**, **feather**, **recolour the snip**, **crop output**.
 - **Bulk operations** — recolour, convert, **crop/trim**, or **rename** *every*
   sprite/emote at once (find/replace, prefix/suffix, numbering, case).
 - **Format conversion** — import webp/apng/gif/png (and jpg/bmp/tga/tiff/…),
@@ -94,7 +103,9 @@ Runs natively on **Windows, Linux, macOS, Android, iOS**, and as a **website**
   [docs/SHORTCUTS.md](docs/SHORTCUTS.md).
 - **Tuned for speed** — an allocation-free per-pixel core, downscaled/debounced
   live previews, and bulk jobs that keep the UI responsive (progress instead of
-  a freeze).
+  a freeze). Editing fields (Emotes, Character) writes to the model and commits
+  on blur — **no per-keystroke re-render**, so typing stays smooth even with a
+  big sprite in the preview.
 
 ---
 
@@ -152,7 +163,7 @@ platform via [`.github/workflows/build.yml`](.github/workflows/build.yml).
 | [docs/AUTO_BUILD.md](docs/AUTO_BUILD.md) | How folder → character works |
 | [docs/COLOR_OPS.md](docs/COLOR_OPS.md) | Every colour operation + parameters |
 | [docs/ANIMATION.md](docs/ANIMATION.md) | Recipes, easing, timeline, lip-sync, regions |
-| [docs/MIXER.md](docs/MIXER.md) | Snip & combine sprites (head-on-body) |
+| [docs/MIXER.md](docs/MIXER.md) | Snip, stack & link sprites (mouse-driven; multi-snip + layers) |
 | [docs/SHORTCUTS.md](docs/SHORTCUTS.md) | Keyboard shortcuts + the top toolbar |
 | [docs/PLUGINS.md](docs/PLUGINS.md) | Pack JSON schema + native plugins + libwebp |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | How the code is organised |

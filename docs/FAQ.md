@@ -53,8 +53,52 @@ website it's a folder upload. Sub-folder structure is preserved, and an existing
 Open the **Mixer**. Your **body** is a sprite from the loaded project; for the
 head, click **Load a 2nd sprite folder…** and dump the other character's folder
 in — it's added as a "parts" source you can snip from, but stays out of your
-project and export. Then frame the snip, place it, and **Save as new emote**.
-See [MIXER.md](MIXER.md).
+project and export. Add a snip, frame it (drag the box in **Snip** mode), then
+**drag it into place** on the canvas in **Arrange** mode (corner = scale, scroll
+= scale, round handle = rotate) and **Save as new emote**. You can add **several
+snips** (head + hat + accessory). See [MIXER.md](MIXER.md).
+
+**My character is split into separate part files (eyes, brows, body, an arm…) —
+how do I combine them?**
+Open the **Mixer → Layers** mode. **Load a sprite folder** of the parts, click
+**Add all**, and they stack into one finished sprite at their native positions
+(no cropping or positioning needed). Reorder/hide/fade per layer, then **Combine
+& save as new emote**. See [MIXER.md](MIXER.md#layers--for-art-where-everything-is-separated).
+
+**What does "Guess sound effects" do?**
+It's an auto-build helper. When on, the builder scans each emote's name for
+keywords (e.g. *slam*, *point*, *object*, *shout*) and fills in a matching
+`SoundN` sound effect (and sets the emote to play its preanimation). Off = it
+leaves sounds blank for you to set in the **Emotes** tab.
+
+**My buttons show the whole body — can they just show the face?**
+They already do by default. Buttons (and the `char_icon`) frame the character's
+**head/face** (detected from the silhouette). The **Buttons** tab has a **Head /
+face ↔ Full body** toggle, plus **Face zoom** and **Move X/Y** to fine-tune the
+crop if the auto-detection is off.
+
+**How do I make the char_icon? Can I move it or add a border?**
+The **Buttons** tab generates `char_icon.png` automatically on export. There you
+can pick its **framing** (face by default), **size** (40–128, default 40),
+**zoom**, **Move X/Y** position, the **emote it's made from**, and an **overlay
+border/background**. **Save char_icon.png now** bakes it straight into your
+project.
+
+**Can I put a border/frame on my buttons (like KFO CharMaker)?**
+Yes — **Buttons** tab → **Overlays → Border (on top) → Import…** a PNG; it's
+composited over every generated button. There's a **Background** slot too, and
+the char_icon has its own overlays.
+
+**Where do I set blips, chat, showname, or the side?**
+The **Character** tab — it's the full `char.ini` `[Options]` editor (name,
+showname, `needs_showname`, side, **blips**, **chat**, category, scaling,
+stretch, …). The auto-builder sets defaults; change anything here. Imported
+custom keys are preserved.
+
+**Typing in a field is laggy.**
+Fixed — editing fields (Emotes, Character) no longer re-renders the big sprite
+preview on every keystroke; the change is written immediately and committed when
+you click away. Update to the current build if you still see it.
 
 **I recoloured/edited "All sprites" but nothing changed — why?**
 That was a bug with **WebP** sprites (the default format): the edit was written to

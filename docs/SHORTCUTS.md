@@ -14,16 +14,19 @@ toolbar** (undo / redo / import / export).
 | `Ctrl/⌘ + E` | Export just `char.ini` |
 | `Ctrl/⌘ + N` | Add a new emote |
 | `Ctrl/⌘ + ↑` / `Ctrl/⌘ + ↓` | Select the previous / next emote |
-| `Ctrl/⌘ + 1 … 9` | Jump to a screen (1 = Home, 2 = Emotes, … 9 = Plugins) |
+| `Ctrl/⌘ + 1 … 9` | Jump to a screen (1 = Home, 2 = Character, … 9 = Bulk) |
 | `F1` | Show the shortcuts cheat-sheet |
 
 > Inside a text field, `Ctrl+Z` is handled by the field (text undo). Click
 > anywhere outside the field first to use the global undo/redo.
 
-## Screen numbers (`Ctrl/⌘ + N`)
+## Screen numbers (`Ctrl/⌘ + 1…9`)
 
-1. Home · 2. Emotes · 3. Colour Lab · 4. Animate · 5. Buttons · 6. Edit ·
-7. Mixer · 8. Bulk · 9. Plugins
+1. Home · 2. Character · 3. Emotes · 4. Colour Lab · 5. Animate · 6. Buttons ·
+7. Edit · 8. Mixer · 9. Bulk
+
+> The 10th screen, **Plugins**, has no number shortcut (there are only nine
+> digits) — click it in the rail.
 
 ## Undo / redo scope
 

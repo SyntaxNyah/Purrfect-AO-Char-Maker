@@ -15,7 +15,8 @@ Legend: ✅ done · 🟡 partial · ⬜ planned
 - ✅ Sprite scanner (a/b/c, statics, subfolders, preanims, extension priority)
 - ✅ Auto character builder (names, preanim detection, sound guesses)
 - ✅ Organizer (folders, file copy/move, auto buttons, ini)
-- ⬜ Auto `char_icon.png` generation
+- ✅ Auto `char_icon.png` generation (head/face framing, size 40–128, choose the
+  source emote, optional border/background overlay)
 - ⬜ Auto `credits.txt` scaffolding
 
 ## Imaging & colour
@@ -28,7 +29,9 @@ Legend: ✅ done · 🟡 partial · ⬜ planned
 - ✅ Custom colour wheel/picker → recolour / tint / solid / gradient (blendable)
 - ✅ Crop, auto-trim & background removal (frame-aware; uniform across (a)/(b))
 - ✅ Sprite compositor / mixer (snip + stack layers; head-on-body) with a
-  two-folder workflow (load a 2nd character's folder to graft parts from)
+  two-folder workflow (load a 2nd character's folder to graft parts from),
+  **multiple snips at once**, **mouse drag/scale/rotate**, and a **Layers mode**
+  that links separated part-files (eyes/brows/body/…) into one sprite
 - ✅ Bulk recolour, convert, crop/trim & rename (recolour/edit re-encode WebP
   sprites in place — no more phantom `.apng` that left the original untouched)
 - ✅ WebP encode: web (canvas) + native (libwebp via FFI), bundled in CI builds
@@ -65,8 +68,16 @@ Legend: ✅ done · 🟡 partial · ⬜ planned
 - ⬜ Recent projects / autosave
 
 ## UI polish
+- ✅ Button & Icon Studio: head/face vs full-body framing (face default), size,
+  zoom, crop-position offsets, and **image overlays** (KFO-style borders +
+  backgrounds) for both buttons and the char_icon
+- ✅ Dedicated **char.ini builder** screen (the full `[Options]` block: name,
+  showname, blips, chat, side, category, scaling, …)
+- ✅ About / credits (maintainer + repo) in the toolbar and on Home
 - ✅ Performance: lazy active-screen build, decoupled/debounced previews
   (incl. the Mixer), cached chip lists, smooth (non-pixelated) scaling
+- ✅ Performance: field editing (Emotes/Character) is no longer re-rendered per
+  keystroke — it commits on blur, and the preview is cached per sprite revision
 - ✅ Performance: allocation-free per-pixel op core (sequential pixel cursor),
   bulk/recolour/edit loops yield so the UI stays responsive
 - ✅ Keyboard shortcuts (undo/redo, import/export, screen jumps, F1 help) + a
@@ -78,6 +89,8 @@ Legend: ✅ done · 🟡 partial · ⬜ planned
   `dart run flutter_launcher_icons`) — placeholder art, swap in the Pinsel mascot
 - ⬜ Drag-and-drop import
 - ⬜ Move heavy bakes (bulk/animation export) into isolates
-- ⬜ Crop-rectangle button compositor UI (engine: `ButtonMaker.renderComposite`)
-- ⬜ Region picker overlay (drag a box) for region animation/outfit edits
+- 🟡 Button overlay/border + background compositor UI (done for auto buttons +
+  char_icon; the full mask/crop `ButtonMaker.renderComposite` UI is still planned)
+- 🟡 Region picker overlay (drag a box) — done in the Mixer (snip/arrange canvas);
+  still planned for region animation/outfit edits
 - ⬜ Theming / accessibility pass

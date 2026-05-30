@@ -100,6 +100,27 @@ class Compositor {
     return canvas;
   }
 
+  /// Paste [piece] onto a copy of [base] so the (scaled/rotated) piece is
+  /// **centred** on ([cx],[cy]) in base pixels. Centring on the rotation pivot
+  /// means a rotated piece spins in place (and matches a UI `Transform.rotate`
+  /// preview), instead of drifting as its bounding box grows.
+  static img.Image placeCentered(
+    img.Image base,
+    img.Image piece, {
+    required double cx,
+    required double cy,
+    double scale = 1,
+    double angle = 0,
+    double opacity = 1,
+  }) {
+    final img.Image canvas =
+        base.numChannels == 4 ? base.clone() : base.convert(numChannels: 4);
+    final img.Image t = _transform(piece, scale, angle, opacity);
+    img.compositeImage(canvas, t,
+        dstX: (cx - t.width / 2).round(), dstY: (cy - t.height / 2).round());
+    return canvas;
+  }
+
   /// Flatten ordered layers onto a fresh [width]×[height] transparent canvas.
   static img.Image flatten(int width, int height, List<Layer> layers) {
     final img.Image canvas = img.Image(width: width, height: height, numChannels: 4);

@@ -12,6 +12,7 @@ If you just want to try it with nothing installed, use the **website build** (se
 2. [A few words you'll see](#2-a-few-words-youll-see)
 3. [The app layout](#3-the-app-layout)
 4. [Home — import & export](#4-home--import--export)
+4b. [Character — the char.ini](#character--the-charini)
 5. [Emotes — edit your character](#5-emotes--edit-your-character)
 6. [Colour Lab — recolour sprites](#6-colour-lab--recolour-sprites)
 7. [Animate — make sprites move](#7-animate--make-sprites-move)
@@ -59,13 +60,14 @@ On the left is a **navigation rail** with these tabs:
 
 | Tab | What it's for |
 |-----|---------------|
-| 🏠 **Home** | Import sprites/folders, set basics, export |
+| 🏠 **Home** | Import sprites/folders, set basics, export, credits |
+| 🪪 **Character** | The full **char.ini** editor (name, showname, blips, chat, side…) |
 | ▦ **Emotes** | Edit each emote's settings |
 | 🎨 **Colour Lab** | Recolour sprites in real time (+ custom colour wheel) |
 | 🎬 **Animate** | Make sprites move / glow / etc. |
-| ▢ **Buttons** | Preview & generate emote icons |
+| ▢ **Buttons** | Frame & generate emote buttons **and** the char_icon (borders too) |
 | ✂️ **Edit** | Crop, auto-trim, remove background |
-| ✦ **Mixer** | Snip parts of sprites together |
+| ✦ **Mixer** | Snip / stack parts of sprites together (mouse-driven) |
 | ⧉ **Bulk** | Recolour / convert / **rename** *all* sprites at once |
 | 🧩 **Plugins** | Add preset/animation packs |
 
@@ -108,6 +110,38 @@ them and press **Regenerate from sprites**):
 
 **Validation card** — shows errors/warnings (e.g. "No sprite file found for X")
 with a plain-language fix for each. Green = all good. 🎉
+
+**Credits card** — who maintains Pinsel, with a link to the GitHub repo and an
+**About** button (also the ℹ button in the top toolbar) for full credits.
+
+> **"Guess sound effects" — what is it?** When on, the auto-builder reads each
+> emote's name for keywords (e.g. *slam*, *point*, *object*, *shout*) and fills
+> in a matching sound effect (and sets it to play the preanimation), so a
+> "deskslam" emote gets the desk-slam SFX automatically. Off = sounds are left
+> blank for you to set in the Emotes tab.
+
+---
+
+## Character — the char.ini
+
+Open the **Character** tab. This is the full editor for the `[Options]` block of
+your `char.ini` — everything the auto-builder only guessed a default for. Changes
+are saved into your project automatically (use Undo/Redo), and written verbatim
+on export. Any custom keys you imported are **preserved**.
+
+- **Name** — the folder name and in-game character name.
+- **Showname** — the name shown in the chatbox (blank = use Name).
+- **Require a custom showname** — `needs_showname` (Unset / Yes / No).
+- **Category** — groups the character in the picker (optional).
+- **Side** — the courtroom position (Defense, Prosecution, Witness, Judge…).
+- **Blips** — the *typing-sound* set (e.g. `male`, `female`, `typewriter`).
+  Modern AO uses this where old characters used `gender` (Pinsel reads either).
+- **Chat** — the chatbox / font style name.
+- **Scaling** — how sprites are resized (Default / Smooth / Pixel).
+- **Stretch** — stretch sprites to fill (`stretch`).
+- **Effects / Realization** — advanced overrides, rarely needed.
+
+There's an **Export char.ini** button right here, too.
 
 ---
 
@@ -228,20 +262,45 @@ see [ANIMATION.md](ANIMATION.md) (regions, `LipSync`, the keyframe `Timeline`).
 
 ---
 
-## 8. Buttons — emote icons
+## 8. Buttons — emote buttons & the char_icon
 
-Buttons are made **automatically** when you export (each sprite is trimmed,
-cropped to a centred square, and scaled). This tab lets you check them.
+Buttons **and** the character-select `char_icon.png` are generated automatically
+when you export. This tab — the **Button & Icon Studio** — lets you control
+*how*, with a live preview of each.
 
-1. Select an emote.
-2. See its auto button in the preview box.
-3. Drag **Button size** (default **128 px**; 40 px is AO's bare minimum, up to 256).
-4. **Export character (.zip) with auto buttons** writes them all into
-   `emotions/`.
+### Framing (the big one)
+By default Pinsel frames the character's **head / face** — AO buttons show
+*expressions*, so a full-body button looks weird and tiny. Toggle **Head / face**
+↔ **Full body** for both the button and the icon.
 
-> Want a custom icon? Drop your own `buttonN_off.png` into the character's
-> `emotions/` folder afterwards and it takes priority. The advanced
-> background/foreground/mask compositor exists in the engine (see the roadmap).
+- **Face zoom** (head mode) — tighter or looser around the face.
+- **Move X / Y** — nudge the crop if the auto-detected face is off (e.g. an
+  off-centre or tilted head).
+- **Size** — buttons default **128 px** (40–256); the **char_icon** defaults to
+  **40 px** and is customisable **40–128**.
+
+### Borders & backgrounds (KFO-style)
+Want a frame around your buttons like other makers? Under **Overlays**:
+- **Border (on top)** — import a PNG that's laid **over** every button/icon (a
+  frame, shine, corner badge…).
+- **Background** — import a PNG that sits **behind** the sprite.
+
+You can set different overlays for the buttons and the icon (or none).
+
+### Char icon
+- Choose which emote it's **made from** (defaults to the first).
+- **Save char_icon.png now** bakes it straight into your project (and downloads
+  it). Otherwise it's generated on export.
+
+### Generate toggles & export
+- Turn button or char_icon generation off entirely with the **Generate** switch.
+- **Export character (.zip)** writes everything (`emotions/buttonN_off.png` +
+  `char_icon.png`).
+
+> A `buttonN_off.png` or `char_icon.png` you import (or save here) is kept as-is
+> on export — only the missing ones are generated. The advanced
+> background/foreground/mask compositor also exists in the engine
+> (`ButtonMaker.renderComposite`).
 
 ---
 
@@ -264,34 +323,43 @@ Crop and auto-trim apply the **same box to every frame and to an emote's
 
 ## 10. Mixer — snip & combine sprites
 
-The "frankensprite" tool: put one character's head on another's body, etc.
-Because that usually means **two different characters**, the Mixer expects **two
-separate sprite folders**:
+The "frankensprite" tool. It's **mouse-driven** with sliders as a precise backup,
+and has **three modes** (toggle at the top of the canvas):
 
-- the **body** is a sprite from your **loaded project**;
-- the **part** you graft on can come from your project *or* from a **2nd folder
-  you load right here**.
+- **Arrange** — place snipped parts on a body. **Drag** a part to move it, drag
+  its **corner** to scale (or **scroll** the wheel), drag the **round handle** to
+  rotate.
+- **Snip** — choose *what* to cut: **drag the box** on the source sprite, drag a
+  **corner** to resize.
+- **Layers** — "link everything": stack whole, pre-aligned files into one sprite.
 
-1. **1 · Body** — choose the sprite (from your project) that forms the bottom.
-2. **2 · Part to graft on:**
-   - **Snip parts from** — *This project*, or a folder you've loaded.
-   - **Load a 2nd sprite folder…** — dump another character's sprite folder in.
-     It's kept separate from your project and **never exported** — it's just a
-     palette of parts to snip from. (Remove it with the ✕.)
-   - **Snip from** — pick the sprite to take a piece of.
-3. **Snip region (crop the part)** — toggle **Ellipse snip** for heads (off =
-   rectangle), drag **X / Y / Width / Height** to frame it, then optionally
-   **Flip H/V** or add **Feather** to soften the cut edge.
-4. **Recolour the part** — **Hue / Saturation / Brightness** retint just the
-   snipped piece so it matches the body (no need to bounce to the Colour Lab).
-5. **Placement** — **Pos X / Y, Scale, Rotate, Opacity** to drop it onto the
-   body; **Center** snaps it to the middle.
-6. **Crop output** — trim **Left / Top / Right / Bottom** off the final image.
-7. Type a **New sprite name** and click **Save as new emote**. **Reset** clears
-   everything.
+### Snipping parts (Arrange + Snip)
+1. **Body** — the sprite (from your project) that forms the bottom.
+2. **Snips** — press **+** to add a snip; add **as many as you want** (a head
+   *and* a hat *and* an accessory). Each row is one snip — tap to edit, **copy**
+   to duplicate, **trash** to remove.
+3. For the selected snip:
+   - **Snip parts from** — *This project* or a **2nd folder** you load
+     (**Load a 2nd sprite folder…**; it's kept separate and **never exported**).
+   - **Snip from** — which sprite to take a piece of.
+   - **Ellipse** (great for heads) / rectangle, **X/Y/Width/Height** (or drag in
+     **Snip** mode), **Flip H/V**, **Feather**.
+   - **Recolour the snip** — **Hue / Saturation / Brightness** to match the body.
+   - **Placement** — drag on the canvas, or **Pos X/Y, Scale, Rotate, Opacity**.
+4. **Crop output**, name it, **Save as new emote**.
 
-The live preview is smooth because it's **debounced and downscaled** — only
-**Save** renders at full resolution.
+### Linking separated art (Layers)
+If your character is drawn as separate files (eyes, eyebrows, body, an arm…) that
+already line up, switch to **Layers**:
+1. **Load a sprite folder…** (or use *This project*).
+2. **Add all** — every sprite becomes a layer in one click. The list is the
+   stack (**top = on top**); reorder with **▲/▼**, hide with the checkbox, fade
+   with **opacity**, remove with **✕**.
+3. Name it and **Combine & save as new emote**.
+
+The preview is smooth because each snipped piece is **baked once** and then just
+moved/scaled as a lightweight transform — only **Save** renders at full
+resolution.
 
 Tip: animate the result in the Animate tab — a mixed sprite is just a normal
 sprite.
@@ -356,9 +424,19 @@ Import the folder → Bulk → format **WebP** → optionally **Delete originals
 **Convert ALL** → Export.
 
 **Frankensprite (two characters)**
-Mixer → pick the **body** from your project → **Load a 2nd sprite folder** →
-**Snip from** the other character → frame the head (ellipse) → recolour/feather
-to match → place → **Save as new emote** → Export.
+Mixer → pick the **body** from your project → add a **snip** → **Load a 2nd
+sprite folder** → **Snip from** the other character → frame the head (ellipse,
+or drag in **Snip** mode) → recolour/feather to match → drag it into place in
+**Arrange** mode → add more snips if you like → **Save as new emote** → Export.
+
+**Combine a character that's split into separate part files**
+Mixer → **Layers** mode → **Load a sprite folder** of the parts (eyes, brows,
+body, arm…) → **Add all** → reorder/hide as needed → **Combine & save as new
+emote** → Export.
+
+**Add a border to your buttons**
+Buttons → **Border (on top)** → **Import…** your frame PNG → it's laid over every
+button (and you can do the same for the char_icon) → Export.
 
 ---
 

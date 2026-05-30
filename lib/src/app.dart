@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import 'platform/folder_picker.dart';
 import 'ui/app_state.dart';
+import 'ui/credits.dart';
 import 'ui/screens/animation_studio_screen.dart';
 import 'ui/screens/bulk_screen.dart';
 import 'ui/screens/button_studio_screen.dart';
@@ -11,6 +12,7 @@ import 'ui/screens/color_lab_screen.dart';
 import 'ui/screens/edit_screen.dart';
 import 'ui/screens/editor_screen.dart';
 import 'ui/screens/home_screen.dart';
+import 'ui/screens/ini_builder_screen.dart';
 import 'ui/screens/mixer_screen.dart';
 import 'ui/screens/plugins_screen.dart';
 import 'ui/theme.dart';
@@ -32,6 +34,7 @@ class PinselApp extends StatelessWidget {
 const List<({IconData icon, String label})> _dests =
     <({IconData icon, String label})>[
   (icon: Icons.home_rounded, label: 'Home'),
+  (icon: Icons.badge_rounded, label: 'Character'),
   (icon: Icons.grid_view_rounded, label: 'Emotes'),
   (icon: Icons.palette_rounded, label: 'Colour Lab'),
   (icon: Icons.movie_filter_rounded, label: 'Animate'),
@@ -41,6 +44,11 @@ const List<({IconData icon, String label})> _dests =
   (icon: Icons.dynamic_feed_rounded, label: 'Bulk'),
   (icon: Icons.extension_rounded, label: 'Plugins'),
 ];
+
+/// Index of the Plugins screen (the only project-independent screen besides
+/// Home), kept as a named constant so the no-project guard doesn't go stale when
+/// destinations are reordered.
+const int _pluginsIndex = 9;
 
 /// Persistent navigation rail + status bar around the active screen.
 ///
@@ -60,20 +68,22 @@ class _HomeShellState extends State<HomeShell> {
   Widget _screenFor(int i) {
     switch (i) {
       case 1:
-        return const EditorScreen();
+        return const IniBuilderScreen();
       case 2:
-        return const ColorLabScreen();
+        return const EditorScreen();
       case 3:
-        return const AnimationStudioScreen();
+        return const ColorLabScreen();
       case 4:
-        return const ButtonStudioScreen();
+        return const AnimationStudioScreen();
       case 5:
-        return const EditScreen();
+        return const ButtonStudioScreen();
       case 6:
-        return const MixerScreen();
+        return const EditScreen();
       case 7:
-        return const BulkScreen();
+        return const MixerScreen();
       case 8:
+        return const BulkScreen();
+      case 9:
         return const PluginsScreen();
       case 0:
       default:
@@ -102,6 +112,7 @@ class _HomeShellState extends State<HomeShell> {
                     _TopBar(
                       onImport: () => _importFolder(context),
                       onShortcuts: () => _showShortcuts(context),
+                      onAbout: () => showAboutCreditsDialog(context),
                     ),
                     const Divider(height: 1),
                     Expanded(
@@ -110,8 +121,9 @@ class _HomeShellState extends State<HomeShell> {
                       child: Selector<AppState, bool>(
                         selector: (_, AppState a) => a.hasProject,
                         builder: (BuildContext context, bool hasProject, _) {
-                          final bool needsProject =
-                              _index != 0 && _index != 8 && !hasProject;
+                          final bool needsProject = _index != 0 &&
+                              _index != _pluginsIndex &&
+                              !hasProject;
                           if (needsProject) {
                             return _NoProject(
                                 onGoHome: () => setState(() => _index = 0));
@@ -192,7 +204,7 @@ class _HomeShellState extends State<HomeShell> {
       <String>['Ctrl/⌘ + E', 'Export char.ini'],
       <String>['Ctrl/⌘ + N', 'Add a new emote'],
       <String>['Ctrl/⌘ + ↑ / ↓', 'Previous / next emote'],
-      <String>['Ctrl/⌘ + 1 … 9', 'Jump to a screen (Home … Plugins)'],
+      <String>['Ctrl/⌘ + 1 … 9', 'Jump to a screen (Home, Character … Bulk)'],
       <String>['F1', 'Show this list'],
     ];
     showDialog<void>(
@@ -234,10 +246,12 @@ class _HomeShellState extends State<HomeShell> {
 /// shortcuts cheatsheet. Only repaints when the relevant state flips (not on
 /// every slider drag).
 class _TopBar extends StatelessWidget {
-  const _TopBar({required this.onImport, required this.onShortcuts});
+  const _TopBar(
+      {required this.onImport, required this.onShortcuts, required this.onAbout});
 
   final VoidCallback onImport;
   final VoidCallback onShortcuts;
+  final VoidCallback onAbout;
 
   @override
   Widget build(BuildContext context) {
@@ -280,6 +294,11 @@ class _TopBar extends StatelessWidget {
                   icon: const Icon(Icons.description_outlined),
                 ),
                 const Spacer(),
+                IconButton(
+                  tooltip: 'About / credits',
+                  onPressed: onAbout,
+                  icon: const Icon(Icons.info_outline_rounded),
+                ),
                 IconButton(
                   tooltip: 'Keyboard shortcuts (F1)',
                   onPressed: onShortcuts,

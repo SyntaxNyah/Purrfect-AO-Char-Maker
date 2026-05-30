@@ -12,7 +12,7 @@ instead of rebuilt.
 ```
 files ─► SpriteScanner.fromPaths ─► ScanResult
       ─► CharacterBuilder.build   ─► Character
-      ─► Organizer.organize       ─► folders + char.ini + auto buttons ─► .zip
+      ─► Organizer.organize       ─► folders + char.ini + buttons + char_icon ─► .zip
 ```
 
 ### 1. Scanning (`SpriteScanner`)
@@ -53,9 +53,13 @@ default deskmod, the two heuristics, and the preferred-first list).
 - Copies every source file into `characters/<name>/`, preserving structure.
 - Writes `char.ini`.
 - **Auto-generates buttons**: for each emote it takes the representative sprite's
-  first frame, trims transparent margins, crops a centred square, and scales it
-  to size → `emotions/buttonN_off.png`. Existing buttons are kept unless you ask
-  to overwrite.
+  first frame and frames it — by **default the character's head/face** (detected
+  from the silhouette), or full-body — then scales it to size →
+  `emotions/buttonN_off.png`. The **Button Studio** controls framing, size, zoom,
+  crop offset, and optional border/background overlays.
+- **Auto-generates `char_icon.png`**: the character-select icon, from your chosen
+  emote (default: the first), framed and sized the same way (default **40 px**,
+  range 40–128). Both buttons and the icon are skipped if you already provide one.
 - Exports the result as a `.zip` you drop straight into AO.
 
 ## Overriding decisions

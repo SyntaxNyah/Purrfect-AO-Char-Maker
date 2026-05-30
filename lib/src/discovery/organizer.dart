@@ -6,13 +6,16 @@ import '../core/emote.dart';
 import '../platform/workspace.dart';
 import 'sprite_scanner.dart';
 
-/// Renders a square button icon from a source image's first frame.
-/// Returns null if it cannot produce one. Injected from the imaging layer so
-/// the organiser has no hard dependency on the image engine.
+/// Renders a square button / char-icon from a source image's first frame, with
+/// the requested [CropFraming] (head/face vs full body) and head-crop [zoom].
+/// Returns null if it cannot produce one. Injected from the imaging layer so the
+/// organiser has no hard dependency on the image engine.
 typedef ButtonRenderer = Future<Uint8List?> Function(
   Uint8List sourceBytes,
   String ext,
   int size,
+  CropFraming framing,
+  double zoom,
 );
 
 /// Progress callback: (completed, total, label).
@@ -25,7 +28,14 @@ class OrganizeConfig {
     this.deleteOriginals = false,
     this.generateButtons = true,
     this.buttonSize = CharFolder.defaultButtonSize,
+    this.buttonFraming = CropFraming.head,
+    this.buttonZoom = 1.0,
     this.overwriteExistingButtons = false,
+    this.generateCharIcon = true,
+    this.iconSize = CharFolder.defaultIconSize,
+    this.iconFraming = CropFraming.head,
+    this.iconZoom = 1.0,
+    this.iconSourceEmote = 0,
   });
 
   /// Where the character folder goes inside the target workspace. Defaults to
@@ -36,9 +46,34 @@ class OrganizeConfig {
   /// and target are the same workspace.
   final bool deleteOriginals;
 
+  /// Generate `emotions/buttonN_off.png` for every emote.
   final bool generateButtons;
   final int buttonSize;
+
+  /// How buttons frame each sprite (head/face by default).
+  final CropFraming buttonFraming;
+
+  /// Head-crop zoom for buttons (see [ButtonRenderer]).
+  final double buttonZoom;
+
+  /// When false, an existing button / char_icon already in the target is kept.
   final bool overwriteExistingButtons;
+
+  /// Generate a `char_icon.png` for the character-select screen.
+  final bool generateCharIcon;
+
+  /// char_icon edge in px (40–128; see [CharFolder]).
+  final int iconSize;
+
+  /// How the char_icon frames the sprite (head/face by default).
+  final CropFraming iconFraming;
+
+  /// Head-crop zoom for the char_icon.
+  final double iconZoom;
+
+  /// Which emote (0-based) the char_icon is rendered from. Clamped, and if that
+  /// emote has no sprite the next emote with one is used.
+  final int iconSourceEmote;
 }
 
 /// A single planned file relocation.
@@ -68,14 +103,26 @@ class OrganizePlan {
   final List<ButtonJob> buttonJobs = <ButtonJob>[];
   late String iniRel;
   String? iniText;
+
+  /// Where the generated `char_icon.png` goes (null if not generating one or no
+  /// usable source sprite was found).
+  String? iconRel;
+
+  /// The (already-copied) sprite the char_icon is rendered from.
+  String? iconSourceRel;
 }
 
 /// Builds and executes a plan that turns scanned sprites + a built [Character]
 /// into a tidy, AO-ready character folder.
 class Organizer {
-  const Organizer({this.buttonRenderer});
+  const Organizer({this.buttonRenderer, this.iconRenderer});
 
   final ButtonRenderer? buttonRenderer;
+
+  /// Renderer for the `char_icon.png`. Falls back to [buttonRenderer] when null,
+  /// so callers only set this when the icon needs *different* overlays/framing
+  /// than the buttons (e.g. a different border, or no border at all).
+  final ButtonRenderer? iconRenderer;
 
   /// Compute the plan without performing any writes.
   OrganizePlan plan({
@@ -96,23 +143,44 @@ class Organizer {
     plan.iniRel = joinRel(charDir, CharFolder.iniName);
     plan.iniText = character.serialize();
 
+    final Map<String, SpriteGroup> byBase = <String, SpriteGroup>{
+      for (final SpriteGroup g in scan.groups) g.base: g,
+    };
+
+    /// The (target-relative) representative sprite for emote [i], or null.
+    String? repRel(int i) {
+      if (i < 0 || i >= character.emotes.length) return null;
+      final SpriteFile? rep = byBase[character.emotes[i].sprite]?.representative;
+      return rep == null ? null : joinRel(charDir, rep.relPath);
+    }
+
     if (config.generateButtons) {
-      final Map<String, SpriteGroup> byBase = <String, SpriteGroup>{
-        for (final SpriteGroup g in scan.groups) g.base: g,
-      };
       for (int i = 0; i < character.emotes.length; i++) {
-        final Emote e = character.emotes[i];
-        final SpriteGroup? g = byBase[e.sprite];
-        final SpriteFile? rep = g?.representative;
-        if (rep == null) continue;
+        final String? src = repRel(i);
+        if (src == null) continue;
         plan.buttonJobs.add(ButtonJob(
           emoteIndex: i,
-          sourceRel: joinRel(charDir, rep.relPath),
+          sourceRel: src,
           targetRel: joinRel(
             charDir,
             '${CharFolder.emotionsDir}/${CharFolder.buttonName(i + 1, on: false)}',
           ),
         ));
+      }
+    }
+
+    if (config.generateCharIcon && character.emotes.isNotEmpty) {
+      // Prefer the chosen emote; if it has no sprite, fall back to the first
+      // emote that does, so the icon is never blank.
+      final int start = config.iconSourceEmote.clamp(0, character.emotes.length - 1);
+      String? iconSrc;
+      for (int k = 0; k < character.emotes.length; k++) {
+        iconSrc = repRel((start + k) % character.emotes.length);
+        if (iconSrc != null) break;
+      }
+      if (iconSrc != null) {
+        plan.iconSourceRel = iconSrc;
+        plan.iconRel = joinRel(charDir, CharFolder.charIcon);
       }
     }
     return plan;
@@ -129,7 +197,8 @@ class Organizer {
     final bool sameWs = identical(source, target);
     final int total = plan.fileOps.length +
         1 /* ini */ +
-        plan.buttonJobs.length;
+        plan.buttonJobs.length +
+        (plan.iconRel != null ? 1 : 0);
     int done = 0;
     void tick(String label) => onProgress?.call(++done, total, label);
 
@@ -154,12 +223,27 @@ class Organizer {
         }
         final Uint8List src = await target.readBytes(job.sourceRel);
         final String ext = job.sourceRel.split('.').last.toLowerCase();
-        final Uint8List? png =
-            await buttonRenderer!(src, ext, config.buttonSize);
+        final Uint8List? png = await buttonRenderer!(
+            src, ext, config.buttonSize, config.buttonFraming, config.buttonZoom);
         if (png != null) {
           await target.writeBytes(job.targetRel, png);
         }
         tick('Button ${job.emoteIndex + 1}');
+      }
+
+      // char_icon.png for the character-select screen.
+      if (plan.iconRel != null && plan.iconSourceRel != null) {
+        final bool keepExisting = !config.overwriteExistingButtons &&
+            await target.exists(plan.iconRel!);
+        if (!keepExisting) {
+          final Uint8List src = await target.readBytes(plan.iconSourceRel!);
+          final String ext = plan.iconSourceRel!.split('.').last.toLowerCase();
+          final ButtonRenderer render = iconRenderer ?? buttonRenderer!;
+          final Uint8List? png = await render(
+              src, ext, config.iconSize, config.iconFraming, config.iconZoom);
+          if (png != null) await target.writeBytes(plan.iconRel!, png);
+        }
+        tick('char_icon');
       }
     }
   }

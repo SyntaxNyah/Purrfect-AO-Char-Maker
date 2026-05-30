@@ -90,12 +90,16 @@ Constants + enums. Key items:
 - `enum CourtSide { defense('def')…seance('sea') }` — `.id`, `.label`,
   `CourtSide.fromId`, `.defaultValue` (= witness).
 - `enum ScalingMode { smooth, pixel }` — `.id`, `.fromId`.
+- `enum CropFraming { head, full }` — how auto buttons / the char_icon frame a
+  sprite. `.id`, `.label`, `.fromId`, `.defaultValue` (= **head**, i.e. face).
 - `enum FrameEffectKind { sfx, realization, screenshake }` — `.suffix`,
   `.sectionSuffix(spriteRef)`.
 - `IniSection` — canonical lower-case section names.
 - `AoTiming` — `soundTickMs`=60, `frameDelayUnitSeconds`=0.01, defaults.
 - `CharFolder` — `iniName`, `charIcon`, `emotionsDir`, `buttonName(n,{on})`,
-  `recommendedButtonSize`=40, `ignoredScanDirs`, `ignoredScanBaseNames`, …
+  `recommendedButtonSize`=40, `defaultButtonSize`=128, `min/maxButtonSize`,
+  `recommendedIconSize`=60, `defaultIconSize`=40, `min/maxIconSize`(40–128),
+  `ignoredScanDirs`, `ignoredScanBaseNames`, …
 - `kEmoteFieldSeparator`='#', `kNoPreanim`='-'.
 
 ### core/ao_ini.dart
@@ -161,15 +165,22 @@ The central model.
   preanim detection, sound guesses, preferred-first ordering).
 
 ### discovery/organizer.dart
-- `typedef ButtonRenderer = Future<Uint8List?> Function(bytes, ext, size)`.
+- `typedef ButtonRenderer = Future<Uint8List?> Function(bytes, ext, size,
+  framing, zoom)` — framing/zoom let the renderer head-crop; overlays/offsets are
+  captured by the injected closure (see `AppState.buildOutput`).
 - `typedef ProgressCallback = void Function(done,total,label)`.
 - `class OrganizeConfig({targetCharDir,deleteOriginals,generateButtons,
-  buttonSize,overwriteExistingButtons})`.
-- `FileOp`, `ButtonJob`, `OrganizePlan`.
-- `class Organizer({buttonRenderer})` — `.plan(...)`→OrganizePlan,
-  `.execute(plan,{source,target,config,onProgress})`,
+  buttonSize,buttonFraming,buttonZoom,overwriteExistingButtons,generateCharIcon,
+  iconSize,iconFraming,iconZoom,iconSourceEmote})`. Framing defaults to **head**;
+  `iconSize` defaults to 40.
+- `FileOp`, `ButtonJob`, `OrganizePlan` (now also `iconRel`/`iconSourceRel`).
+- `class Organizer({buttonRenderer, iconRenderer})` — `.plan(...)`→OrganizePlan
+  (adds a char_icon job from `iconSourceEmote`, falling back to the first emote
+  with a sprite), `.execute(plan,{source,target,config,onProgress})`,
   `.organize(...)` (plan+execute one-shot). Copies files, writes ini, renders
-  buttons.
+  buttons + `char_icon.png`. `iconRenderer` falls back to `buttonRenderer`; set
+  it when the icon needs a different (or no) border. Existing buttons/icon are
+  kept unless `overwriteExistingButtons`.
 
 ### imaging/codecs.dart
 - `Codecs.decode(bytes,{ext})`, `.decodeFirstFrame(...)`, `.isAnimatedExt`,
@@ -221,11 +232,21 @@ The central model.
 - `class Layer(image,{x,y,scale,angle,opacity,visible,name})`.
 - `class CutResult(image,offsetX,offsetY)`.
 - `class Compositor` — `cut(src,mask,{trim})`, `cutRect`, `cutEllipse`,
-  `place(base,piece,{x,y,scale,angle,opacity})`, `flatten(w,h,layers)`.
+  `place(base,piece,{x,y,scale,angle,opacity})` (top-left placement),
+  `placeCentered(base,piece,{cx,cy,scale,angle,opacity})` (centre on the rotation
+  pivot — rotates in place; matches the Mixer's live `Transform.rotate` preview),
+  `flatten(w,h,layers)`.
 
 ### imaging/button_maker.dart
 - `class IntRect(x,y,w,h)`.
-- `ButtonMaker.renderAuto(bytes,ext,size)` (matches `ButtonRenderer`),
+- `ButtonMaker.renderAuto(bytes,ext,size,[framing,zoom])` (matches
+  `ButtonRenderer`; framing defaults to **head/face**),
+  `.renderAutoOverlaid(bytes,ext,size,{framing,zoom,offsetX,offsetY,background,
+  foreground})` (the same with crop offsets + overlay art — buttons/icon borders),
+  `.renderFramed(frame,size,{framing,zoom,offsetX,offsetY,background,foreground})`
+  (from an already-decoded frame; the UI preview path),
+  `.headSquare(image,{zoom})` (silhouette-based face crop — measures head width
+  in the top band, walks down to the shoulder line; `zoom`>1 tightens),
   `.renderComposite({sourceFrame,crop,size,background,foreground,mask,
   selectedOverlay,on})`, `.autoTrimBounds(image)`.
 
@@ -336,8 +357,23 @@ The central model.
     just to snip from (`mixSources`/`MixSource`, resolved via `relForMixBase`,
     removed via `removeMixSource`). It's stashed under `_mixPrefix` in the
     workspace and excluded from every project scan (`_projectFiles`) + the export.
-- `screens/` — home, editor, color_lab, animation_studio, button_studio, edit,
-  mixer, bulk, plugins. `widgets/` — `CheckerImage`, `ZoomCanvas`.
+  - **Buttons & char_icon settings** (public fields, mutated directly by the
+    studio for zero-rebuild lag): `generateButtons`, `buttonSize`, `buttonFraming`,
+    `buttonZoom`, `button/iconOffsetX/Y`; `generateCharIcon`, `iconSize` (default
+    40), `iconFraming`, `iconZoom`, `iconSourceEmote`; overlay slots `buttonBg/Fg`
+    + `iconBg/Fg` (`OverlaySlot`, set via `setOverlay`). `previewAutoButton(size)`
+    / `previewCharIcon()` use `renderFramed`; `saveCharIcon()` bakes `char_icon.png`
+    into the project; `buildOutput()` feeds them all into `OrganizeConfig` and wraps
+    `ButtonMaker.renderAutoOverlaid` in `buttonRenderer`/`iconRenderer` closures.
+  - **Preview cache + lag fix**: `previewSprite(rel)` memoises the plain (no-op
+    pipeline) PNG per `rel@maxEdge`; `_invalidateImageCaches()` clears the decode +
+    preview caches and bumps `spriteRevision` whenever sprite pixels/paths change.
+    The Emotes screen watches `spriteRevision` (not every notify) so typing a field
+    never re-bakes the preview.
+- `screens/` — home, **ini_builder** (the `[Options]`/char.ini editor), editor,
+  color_lab, animation_studio, button_studio, edit, mixer, bulk, plugins.
+  `widgets/` — `CheckerImage`, `ZoomCanvas`. `credits.dart` — the About dialog +
+  Home credits card (maintainer/repo, in `kMaintainer`/`kRepoUrl`).
   - `color_lab`: sliders + blendable presets/gradients + a **custom colour**
     section — inline hex field and a `flutter_colorpicker` hue-wheel dialog
     (`hexInputBar`, HEX/RGB/HSV labels); picks become `colorize`/`tint`/
@@ -346,18 +382,36 @@ The central model.
     (procedural recipes) and **Frames** (frame-by-frame: pick/reorder sprite
     frames, fps/reverse/ping-pong/align, save). Both share the debounced render +
     `ValueNotifier` playback loop.
+  - `ini_builder`: dedicated **char.ini `[Options]` editor** — name, showname,
+    needs_showname (tri-state), side, blips, chat, category, scaling, stretch,
+    effects, realization; preserves imported `extra` keys. Same no-lag pattern as
+    `editor` (controllers + commit on blur).
+  - `editor` (Emotes): **typing no longer notifies per keystroke** — fields write
+    to the model + commit on blur/submit; the preview is a cached `_SpritePreview`
+    keyed on `rel`+`spriteRevision` (was: a 1024px re-encode on every keystroke).
+  - `button_studio`: **Button & Icon Studio** — framing (Head/face default vs Full
+    body), size, face zoom, crop **Move X/Y** offsets, and **overlay import**
+    (KFO-style border on top + background) for **both** buttons and the char_icon;
+    icon "made from emote" picker + "Save char_icon.png". Debounced `ValueNotifier`
+    previews; settings live on `AppState` so export uses them.
   - `edit`: crop / auto-trim / background removal (drives `SpriteEdit`).
-  - `mixer`: frankensprite. Body = a project sprite; the part to graft comes from
-    *This project* or a **2nd folder loaded in-screen** (`importMixParts` →
-    `mixSources`, kept out of the project/export). Source-tagged pickers + ✕.
-    Tools: snip-crop (X/Y/W/H + ellipse), flip H/V, feather, recolour the snip
-    (hue/sat/bri), placement, **output crop**, Center/Reset. Preview is debounced
-    + downscaled into a `ValueNotifier` (only Save bakes full-res).
+  - `mixer`: frankensprite, **three modes** (`SegmentedButton`): **Arrange**
+    (drag a snip to move, corner handle / scroll to scale, round handle to rotate),
+    **Snip** (drag the crop box / corner handles on the source), **Layers** ("link
+    everything" — stack whole, pre-aligned sprite files; "Add all" from a folder).
+    Supports **multiple snips** (`_Snip` list, per-snip source/crop/recolour/
+    placement) + whole **layers** (`_Layer` list). Body = a project sprite; parts
+    come from *This project* or a **2nd folder loaded in-screen** (`importMixParts`
+    → `mixSources`). Each snip's cut piece is baked **once** (debounced) into a
+    cached image and moved/scaled/rotated as a live Flutter transform; only Save
+    composites full-res (`placeCentered` per snip / `flatten` for layers).
 - `app.dart` (`HomeShell`) hosts a global `CallbackShortcuts` map (undo/redo,
   import/export, add emote, prev/next emote, `Ctrl/⌘+1..9` screen jumps, F1 help)
-  and a `_TopBar` with undo/redo + import/export buttons (gated on
-  `AppState.canUndo`/`canRedo`/`hasProject` via a `Selector`). Document new keys
-  in `docs/SHORTCUTS.md`.
+  and a `_TopBar` with undo/redo + import/export + **About/credits** (ℹ) buttons
+  (gated on `AppState.canUndo`/`canRedo`/`hasProject` via a `Selector`). The nav
+  now has a **Character** destination at index 1 (the ini builder); the no-project
+  guard uses the `_pluginsIndex` constant instead of a hard-coded index, so adding
+  destinations won't silently break it. Document new keys in `docs/SHORTCUTS.md`.
 
 ---
 

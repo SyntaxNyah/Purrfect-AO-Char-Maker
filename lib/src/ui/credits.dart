@@ -1,0 +1,150 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+
+/// Project identity + credits, surfaced in the About dialog and the Home card.
+/// Keep this the single source of truth so both stay in sync.
+const String kAppName = 'Pinsel AO Char Maker';
+const String kMaintainer = 'SyntaxNyah';
+const String kRepoUrl = 'https://github.com/SyntaxNyah/Pinsel-AO-Char-Maker';
+
+/// One-line blurb about who maintains the project.
+const String kMaintainerBlurb =
+    'Created and maintained by $kMaintainer — ongoing bug fixes, new features '
+    'and updates. Open-source on GitHub; issues and pull requests welcome.';
+
+/// Libraries the app is built on (shown in the About dialog).
+const List<String> kTechCredits = <String>[
+  'Flutter & Dart',
+  'image (pure-Dart codecs & pixel ops)',
+  'libwebp (native WebP encode via FFI)',
+  'flutter_colorpicker',
+  'archive · provider · file_picker · path',
+];
+
+/// Show the About / Credits dialog.
+void showAboutCreditsDialog(BuildContext context) {
+  showDialog<void>(
+    context: context,
+    builder: (BuildContext ctx) => AlertDialog(
+      title: const Row(
+        children: <Widget>[
+          Text('🐾  '),
+          Expanded(child: Text('About $kAppName')),
+        ],
+      ),
+      content: SizedBox(
+        width: 460,
+        child: SingleChildScrollView(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              const Text(
+                'The most customizable, most automated Attorney Online / webAO '
+                'character & button maker. Drop in sprites → get a finished, '
+                'AO-ready character.',
+              ),
+              const SizedBox(height: 16),
+              Text('Maintainer',
+                  style: Theme.of(ctx).textTheme.titleSmall),
+              const SizedBox(height: 4),
+              const Text(kMaintainerBlurb),
+              const SizedBox(height: 12),
+              Text('Repository',
+                  style: Theme.of(ctx).textTheme.titleSmall),
+              const SizedBox(height: 4),
+              const _RepoLink(),
+              const SizedBox(height: 12),
+              Text('Built with',
+                  style: Theme.of(ctx).textTheme.titleSmall),
+              const SizedBox(height: 4),
+              for (final String t in kTechCredits)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 1),
+                  child: Text('• $t',
+                      style: Theme.of(ctx).textTheme.bodySmall),
+                ),
+            ],
+          ),
+        ),
+      ),
+      actions: <Widget>[
+        TextButton(
+          onPressed: () => Navigator.of(ctx).pop(),
+          child: const Text('Close'),
+        ),
+      ],
+    ),
+  );
+}
+
+/// A compact credits card for the Home screen.
+class CreditsCard extends StatelessWidget {
+  const CreditsCard({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Row(
+              children: <Widget>[
+                const Icon(Icons.favorite_rounded, color: Color(0xFFB58CFF)),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text('Credits',
+                      style: Theme.of(context).textTheme.titleMedium),
+                ),
+                TextButton.icon(
+                  onPressed: () => showAboutCreditsDialog(context),
+                  icon: const Icon(Icons.info_outline_rounded, size: 18),
+                  label: const Text('About'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            const Text(kMaintainerBlurb),
+            const SizedBox(height: 8),
+            const _RepoLink(),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The repo URL as selectable text with a copy button (no extra dependency for
+/// launching a browser — copy works on every platform including the web build).
+class _RepoLink extends StatelessWidget {
+  const _RepoLink();
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: <Widget>[
+        const Icon(Icons.link_rounded, size: 16),
+        const SizedBox(width: 6),
+        const Expanded(
+          child: SelectableText(
+            kRepoUrl,
+            style: TextStyle(color: Color(0xFFB58CFF)),
+          ),
+        ),
+        IconButton(
+          tooltip: 'Copy link',
+          visualDensity: VisualDensity.compact,
+          icon: const Icon(Icons.copy_rounded, size: 16),
+          onPressed: () {
+            Clipboard.setData(const ClipboardData(text: kRepoUrl));
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Repository link copied')),
+            );
+          },
+        ),
+      ],
+    );
+  }
+}
