@@ -97,17 +97,29 @@ class ButtonMaker {
     }
     final img.Image cropped = img.copyCrop(rgba,
         x: square.x, y: square.y, width: square.w, height: square.h);
-    final img.Image scaled = img.copyResize(cropped,
-        width: size, height: size, interpolation: img.Interpolation.cubic);
+    // Quality: PNG output is lossless, so sharpness is decided here.
+    //  * Never **upscale** the crop — enlarging a small region only blurs it
+    //    (the "low quality button" regression from face framing's smaller crop).
+    //  * When **downscaling**, area-average instead of bicubic — bicubic
+    //    under-samples on big reductions (a ~600px head → 128px button), which
+    //    aliases and softens; averaging samples every source pixel for a crisp,
+    //    clean result (the same filter the live previews use).
+    final int outSize = size < square.w ? size : square.w;
+    final img.Image scaled = outSize >= square.w
+        ? cropped
+        : img.copyResize(cropped,
+            width: outSize,
+            height: outSize,
+            interpolation: img.Interpolation.average);
 
     if (background == null && foreground == null) return Codecs.encodePng(scaled);
-    final img.Image canvas = img.Image(width: size, height: size, numChannels: 4);
+    final img.Image canvas = img.Image(width: outSize, height: outSize, numChannels: 4);
     if (background != null) {
-      img.compositeImage(canvas, _fit(background, size), dstX: 0, dstY: 0);
+      img.compositeImage(canvas, _fit(background, outSize), dstX: 0, dstY: 0);
     }
     img.compositeImage(canvas, scaled, dstX: 0, dstY: 0);
     if (foreground != null) {
-      img.compositeImage(canvas, _fit(foreground, size), dstX: 0, dstY: 0);
+      img.compositeImage(canvas, _fit(foreground, outSize), dstX: 0, dstY: 0);
     }
     return Codecs.encodePng(canvas);
   }

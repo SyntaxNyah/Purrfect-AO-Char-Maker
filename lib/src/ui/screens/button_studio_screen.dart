@@ -87,7 +87,9 @@ class _ButtonStudioScreenState extends State<ButtonStudioScreen> {
         const Text(
           'Buttons and the char_icon are generated on export. Choose how they '
           'frame each sprite — Head / face (default) shows the expression, Full '
-          'body squares the whole sprite.',
+          'body squares the whole sprite. Output is lossless PNG, crisply '
+          'downscaled from the full-res sprite (never upscaled), so bigger sizes '
+          'just mean "as sharp as the source allows".',
         ),
         const SizedBox(height: 16),
 

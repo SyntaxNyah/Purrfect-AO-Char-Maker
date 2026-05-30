@@ -271,9 +271,11 @@ class CharFolder {
   /// Default button edge the app generates at (crisp on modern/high-DPI themes).
   static const int defaultButtonSize = 128;
 
-  /// Allowed button edge range for the Button Studio slider.
+  /// Allowed button edge range for the Button Studio slider. The renderer never
+  /// upscales past the source crop, so a high value just means "as crisp as the
+  /// source allows" for high-res art.
   static const int minButtonSize = 24;
-  static const int maxButtonSize = 256;
+  static const int maxButtonSize = 512;
 
   /// Recommended minimum char_icon edge in pixels (1:1).
   static const int recommendedIconSize = 60;

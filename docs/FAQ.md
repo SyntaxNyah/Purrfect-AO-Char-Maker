@@ -89,6 +89,20 @@ Yes — **Buttons** tab → **Overlays → Border (on top) → Import…** a PNG
 composited over every generated button. There's a **Background** slot too, and
 the char_icon has its own overlays.
 
+**My buttons look blurry / low quality.**
+Buttons are **lossless PNG** — PNG can't lose quality to compression, so
+blurriness is always from *resizing*. Pinsel now renders them crisp: it
+**area-averages** when downscaling from your full-res sprite and **never
+upscales** a small crop (the old bicubic path softened both up- and big
+down-scales). If they still look soft:
+1. **Raise Button size** (Buttons tab, up to 512). It won't upscale past the
+   source, so big, sharp buttons need high-res sprites.
+2. **Don't feed it degraded sprites.** If you converted to WebP with **lossy**
+   quality, the button is cut from an already-degraded image — re-do the convert
+   with **Lossless** (Bulk → WebP → Lossless) and regenerate.
+Buttons stay PNG because it's the most universally AO-compatible button format
+(lossless WebP buttons work in current AO2 but not everywhere).
+
 **Where do I set blips, chat, showname, or the side?**
 The **Character** tab — it's the full `char.ini` `[Options]` editor (name,
 showname, `needs_showname`, side, **blips**, **chat**, category, scaling,

@@ -276,8 +276,10 @@ By default Pinsel frames the character's **head / face** — AO buttons show
 - **Face zoom** (head mode) — tighter or looser around the face.
 - **Move X / Y** — nudge the crop if the auto-detected face is off (e.g. an
   off-centre or tilted head).
-- **Size** — buttons default **128 px** (40–256); the **char_icon** defaults to
-  **40 px** and is customisable **40–128**.
+- **Size** — buttons default **128 px** (24–512); the **char_icon** defaults to
+  **40 px** and is customisable **40–128**. Output is **lossless PNG**, crisply
+  **downscaled** from the full-res sprite and **never upscaled**, so a bigger
+  size is only as sharp as your source art (no blurry enlargement).
 
 ### Borders & backgrounds (KFO-style)
 Want a frame around your buttons like other makers? Under **Overlays**:
