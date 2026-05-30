@@ -193,10 +193,13 @@ class ButtonMaker {
     final IntRect c = autoTrimBounds(image);
     if (c.w < 6 || c.h < 6) return _centerSquare(c, imgW, imgH);
 
-    final int x0 = c.x, x1 = c.x + c.w, y0 = c.y, y1 = c.y + c.h;
-    // Per-row opaque extents within the content box.
-    final List<int> lefts = <int>[];
-    final List<int> rights = <int>[];
+    final int x0 = c.x, x1 = c.x + c.w, y0 = c.y;
+    final int y1 = c.y + c.h;
+    // Per-row opaque extents + widths within the content box.
+    final List<int> left = <int>[];
+    final List<int> right = <int>[];
+    final List<int> width = <int>[];
+    int maxW = 1;
     for (int y = y0; y < y1; y++) {
       int lx = -1, rx = -1;
       for (int x = x0; x < x1; x++) {
@@ -205,37 +208,38 @@ class ButtonMaker {
           rx = x;
         }
       }
-      lefts.add(lx);
-      rights.add(rx);
+      left.add(lx);
+      right.add(rx);
+      final int w = lx < 0 ? 0 : (rx - lx + 1);
+      width.add(w);
+      if (w > maxW) maxW = w;
     }
 
-    // Head width = the widest opaque run in the top band (~top 30% of content),
-    // and the head's horizontal centre comes from that same widest row.
-    final int band = math.max(3, (c.h * 0.30).round());
-    int headW = 1, headCx = c.x + c.w ~/ 2;
-    for (int i = 0; i < band && i < lefts.length; i++) {
-      if (lefts[i] < 0) continue;
-      final int w = rights[i] - lefts[i] + 1;
-      if (w > headW) {
-        headW = w;
-        headCx = (lefts[i] + rights[i]) ~/ 2;
-      }
-    }
-
-    // Shoulder line: the first row past a minimum head height where the
-    // silhouette widens well beyond the head (≈1.5×). No clear widening (a bust
-    // / portrait sprite) just uses the whole content height.
-    final int minRows = math.max(4, (c.h * 0.12).round());
-    int shoulder = y1;
-    for (int i = minRows; i < lefts.length; i++) {
-      if (lefts[i] < 0) continue;
-      final int w = rights[i] - lefts[i] + 1;
-      if (w > headW * 1.5) {
-        shoulder = y0 + i;
+    // Shoulder line: the first row (after a little headroom) that reaches ~70%
+    // of the widest row — i.e. where the narrow head/neck widens into the
+    // shoulders/body. Measuring head width as "top 30% of height" breaks on tall
+    // full-body sprites (it swallows the shoulders); keying off the silhouette's
+    // widest point instead works regardless of how tall the body is. The head
+    // height is floored so a shallow/early widening still yields a sane crop.
+    final int minRows = math.max(3, (c.h * 0.06).round());
+    final int shoulderW = (maxW * 0.70).round();
+    int shoulderIdx = width.length;
+    for (int i = minRows; i < width.length; i++) {
+      if (width[i] >= shoulderW) {
+        shoulderIdx = i;
         break;
       }
     }
-    final int headH = (shoulder - y0).clamp(1, c.h);
+    final int headH = math.max(shoulderIdx, (c.h * 0.22).round()).clamp(1, c.h);
+
+    // Head width + horizontal centre, from the rows above the shoulder line.
+    int headW = 1, headCx = c.x + c.w ~/ 2;
+    for (int i = 0; i < shoulderIdx && i < width.length; i++) {
+      if (left[i] >= 0 && width[i] > headW) {
+        headW = width[i];
+        headCx = (left[i] + right[i]) ~/ 2;
+      }
+    }
 
     // Square side encompassing the head with a little margin; zoom tightens it.
     final double z = zoom <= 0 ? 1.0 : zoom;

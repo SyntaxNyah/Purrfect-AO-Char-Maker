@@ -29,6 +29,9 @@ with the same base name.
 
 ## Sections
 
+> Edit all of `[Options]` in the app's **Character** tab (the dedicated char.ini
+> builder) — see [USER_GUIDE.md → Character](USER_GUIDE.md#character--the-charini).
+
 ### `[Options]`
 | Key | Meaning |
 |-----|---------|

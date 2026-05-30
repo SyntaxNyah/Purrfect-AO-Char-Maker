@@ -2,7 +2,6 @@ import 'dart:typed_data';
 
 import '../core/ao_constants.dart';
 import '../core/character.dart';
-import '../core/emote.dart';
 import '../platform/workspace.dart';
 import 'sprite_scanner.dart';
 

@@ -90,7 +90,7 @@ server {
 - Import sprite **files** *or a whole **folder*** (the web build uses a
   `webkitdirectory` folder upload, preserving sub-folder structure).
 - All scanning, auto-`char.ini`, recolour, animation, mixing, cropping,
-  background removal, and button generation happen in the browser.
+  background removal, and button + `char_icon` generation happen in the browser.
 - **WebP export works out of the box** (browser-native encoder). *Animated* WebP
   is the one thing the browser can't encode, so animations export as APNG on web.
 - Export a ready-to-use character **`.zip`** via a normal download.

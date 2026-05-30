@@ -245,8 +245,10 @@ The central model.
   foreground})` (the same with crop offsets + overlay art — buttons/icon borders),
   `.renderFramed(frame,size,{framing,zoom,offsetX,offsetY,background,foreground})`
   (from an already-decoded frame; the UI preview path),
-  `.headSquare(image,{zoom})` (silhouette-based face crop — measures head width
-  in the top band, walks down to the shoulder line; `zoom`>1 tightens),
+  `.headSquare(image,{zoom})` (silhouette-based face crop — finds the shoulder
+  line as the first row that widens to ~70% of the silhouette's widest row, then
+  frames the head above it; floors head height so it's robust on full-body vs
+  bust sprites; `zoom`>1 tightens),
   `.renderComposite({sourceFrame,crop,size,background,foreground,mask,
   selectedOverlay,on})`, `.autoTrimBounds(image)`.
 

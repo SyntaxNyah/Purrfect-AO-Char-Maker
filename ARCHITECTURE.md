@@ -22,7 +22,7 @@ lib/
     discovery/                  ── folder → character automation ──
       sprite_scanner.dart       classify files (pure fromPaths + scanDirectory)
       character_builder.dart    ScanResult → Character (auto ini, smart names)
-      organizer.dart            plan + execute folders / moves / auto buttons
+      organizer.dart            plan + execute folders / moves / buttons + char_icon
       bulk_rename.dart          name transformer (find/replace, numbering, case)
 
     imaging/                    ── the image & colour engine ──
@@ -30,8 +30,10 @@ lib/
       color_ops.dart            43 composable colour ops (ColorOp/OpPipeline)
       region_edit.dart          masks + magic-wand + recolour/erase/fill + bg removal
       sprite_edit.dart          crop / auto-trim / background removal (frame-aware)
-      compositor.dart           snip + stack layers (frankensprite; 2-folder mixer UI)
-      button_maker.dart         auto + composited button icons
+      compositor.dart           snip + stack/centre layers (frankensprite mixer:
+                                multi-snip, mouse, link-layers)
+      button_maker.dart         buttons + char_icon: head/face vs full framing
+                                (silhouette head crop), zoom/offset, overlays
       bulk_processor.dart       apply pipeline / convert across many files
       webp_codec.dart           WebP encode interface (lossy + lossless, animated)
       webp_codec_io.dart          native: libwebp + libwebpmux via dart:ffi
@@ -62,19 +64,23 @@ lib/
     ui/
       app_state.dart            ChangeNotifier hub the screens talk to
       theme.dart
+      credits.dart              About dialog + Home credits card (maintainer/repo)
       widgets/                  checker_image, zoom_canvas
-      screens/                  home, editor, color_lab, animation_studio,
+      screens/                  home, ini_builder (char.ini Options editor),
+                                editor, color_lab, animation_studio,
                                 button_studio, edit, mixer, bulk, plugins
     app.dart                    HomeShell: nav rail + global keyboard shortcuts
-                                (CallbackShortcuts) + undo/redo toolbar + status
+                                (CallbackShortcuts) + undo/redo + About toolbar + status
 ```
 
 **Performance.** The per-pixel op core (`ImageOps._eachPixel`) walks the frame's
 sequential pixel cursor and reuses one struct (no per-pixel random access or
-allocation); live previews (Colour Lab, Edit, Mixer) run **downscaled and
-debounced**; and the long bake loops (`applyPipeline`/`applyEdit`/
-`BulkProcessor.run`) yield to the event loop so progress repaints instead of the
-window freezing.
+allocation); live previews (Colour Lab, Edit, Mixer, Button Studio) run
+**downscaled and debounced**; field editing (Emotes, Character) writes to the
+model and **commits on blur** rather than notifying per keystroke, and the
+sprite preview is cached per `spriteRevision`, so typing never re-bakes it; and
+the long bake loops (`applyPipeline`/`applyEdit`/`BulkProcessor.run`) yield to
+the event loop so progress repaints instead of the window freezing.
 
 ## Key design decisions
 
@@ -105,5 +111,5 @@ import files ─► MemoryWorkspace
              ─► SpriteScanner.fromPaths ─► ScanResult
              ─► CharacterBuilder.build  ─► Character  (or parse existing char.ini)
 edit / recolour / animate (mutating Character + workspace bytes, with undo/redo)
-export ─► Organizer (folders + auto buttons + ini) ─► zip ─► saveBytes/download
+export ─► Organizer (folders + buttons + char_icon + ini) ─► zip ─► saveBytes/download
 ```

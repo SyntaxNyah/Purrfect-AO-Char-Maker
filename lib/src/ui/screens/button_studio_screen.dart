@@ -143,7 +143,7 @@ Widget _framingPicker(CropFraming value, ValueChanged<CropFraming> onChanged) {
   );
 }
 
-Widget _previewBox(ValueListenable<Uint8List?> preview, String caption) {
+Widget _previewBox(ValueNotifier<Uint8List?> preview, String caption) {
   return Column(
     children: <Widget>[
       Container(

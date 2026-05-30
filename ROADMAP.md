@@ -84,7 +84,8 @@ Legend: ✅ done · 🟡 partial · ⬜ planned
   top toolbar with undo/redo + quick actions
 - ✅ Mixer tools: snip-crop/ellipse, flip H/V, feather, recolour the snip,
   output crop, center/reset
-- 🟡 Editor, Colour Lab, Animate, Buttons, Edit, Mixer, Bulk, Plugins screens
+- 🟡 Home, Character (char.ini), Editor, Colour Lab, Animate, Buttons, Edit,
+  Mixer, Bulk, Plugins screens
 - 🟡 App icon: `flutter_launcher_icons` pipeline wired (`assets/icon/app_icon.png`,
   `dart run flutter_launcher_icons`) — placeholder art, swap in the Pinsel mascot
 - ⬜ Drag-and-drop import
