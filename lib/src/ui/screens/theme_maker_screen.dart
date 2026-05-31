@@ -1,5 +1,3 @@
-import 'dart:typed_data';
-
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -1722,7 +1720,9 @@ const Map<String, String> _widgetSampleText = <String, String>{
 class _KeyCaptureDialog extends StatelessWidget {
   const _KeyCaptureDialog();
 
-  static const Set<LogicalKeyboardKey> _modifiers = <LogicalKeyboardKey>{
+  // Not `const`: LogicalKeyboardKey overrides ==, which Dart forbids in a const
+  // set (const_set_element_not_primitive_equality).
+  static final Set<LogicalKeyboardKey> _modifiers = <LogicalKeyboardKey>{
     LogicalKeyboardKey.shiftLeft,
     LogicalKeyboardKey.shiftRight,
     LogicalKeyboardKey.controlLeft,

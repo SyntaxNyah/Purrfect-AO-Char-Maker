@@ -2,7 +2,6 @@ import 'dart:math' as math;
 
 import 'package:image/image.dart' as img;
 
-import '../core/ao_constants.dart';
 import '../imaging/button_maker.dart' show IntRect;
 import 'anim_clip.dart';
 
