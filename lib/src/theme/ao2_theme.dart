@@ -227,6 +227,32 @@ class Ao2Theme {
   int get width => courtroom.element('courtroom')?.w ?? 1280;
   int get height => courtroom.element('courtroom')?.h ?? 720;
 
+  /// Change the courtroom size to [newW]×[newH]. With [scaleElements], every
+  /// other widget's x/y/w/h is scaled proportionally so the layout adapts to the
+  /// new resolution (e.g. 720p → 1080p); [scaleFonts] grows font sizes too. The
+  /// `courtroom` element itself is always set to `0, 0, newW, newH`.
+  void resize(int newW, int newH,
+      {bool scaleElements = false, bool scaleFonts = false}) {
+    final int oldW = width, oldH = height;
+    if (scaleElements && oldW > 0 && oldH > 0) {
+      final double fx = newW / oldW, fy = newH / oldH;
+      for (final ThemeElement e in courtroom.elements) {
+        if (e.name == 'courtroom') continue;
+        e.x = (e.x * fx).round();
+        e.y = (e.y * fy).round();
+        e.w = (e.w * fx).round();
+        e.h = (e.h * fy).round();
+      }
+      if (scaleFonts) {
+        final double ff = (fx + fy) / 2;
+        for (final ThemeFont f in fonts) {
+          f.size = (f.size * ff).round().clamp(1, 400);
+        }
+      }
+    }
+    courtroom.upsertElement('courtroom', 0, 0, newW, newH);
+  }
+
   final ThemeDesign courtroom = ThemeDesign();
   final List<ThemeFont> fonts = <ThemeFont>[];
   final List<ThemeSound> sounds = <ThemeSound>[];

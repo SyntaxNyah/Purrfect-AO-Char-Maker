@@ -49,8 +49,10 @@ Legend: ✅ done · 🟡 partial · ⬜ planned
   (border-background flood + connected components) or uniform grid, tap-to-toggle
   cells, background removal, add-to-character or zip
 - ✅ **AO2 Theme Maker** (`theme/`) — full client theme editor: drag widgets in a
-  live courtroom, edit every position/colour/font/image/sound/CSS/scalar, import a
-  real theme, random palette generator, lossless `.zip` export for `base/themes/`
+  live courtroom (with the real art), edit every position/colour/font/image/sound/
+  CSS/scalar, **resize** to 1080p/720p/custom (proportional `resize`), a
+  **real-client preview**, import a real theme, random palette generator, lossless
+  `.zip` export for `base/themes/`
 - ✅ `scripts/build_all.ps1` bundles the libwebp DLLs into local Windows builds
   too (best-effort via vcpkg), so a locally-built app gets working animated WebP
 - ⬜ GPU fragment-shader real-time path (CPU preview works now)

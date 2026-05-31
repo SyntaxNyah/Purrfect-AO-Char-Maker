@@ -366,8 +366,9 @@ The central model.
   `sounds`, `courtroomCss`/`lobbyCss`, `images`, **`otherFiles`** (lossless
   passthrough). `width`/`height` from the `courtroom` element. `buildFiles()`→
   `relPath→bytes` for export; `static fromFiles(name,files)` parses a folder;
-  `normalizePicked`, `starter()`, `parseFlatIni`, `intList`, `parseFonts`,
-  `parseSounds`. **Lossless round-trip** (text is latin1 passthrough).
+  `normalizePicked`, `starter()`, `resize(w,h,{scaleElements,scaleFonts})`,
+  `parseFlatIni`, `intList`, `parseFonts`, `parseSounds`. **Lossless round-trip**
+  (text is latin1 passthrough).
 
 ### theme/ao2_theme_defaults.dart
 - Catalogues for the Theme Maker pickers: `kCourtroomWidgets`
@@ -493,13 +494,16 @@ The central model.
     size/gap/padding/trim) or **Grid** (cols/rows/offset/gutter/cell). Overlay
     boxes are **tap-to-toggle**; export adds to the character (`addSprites`) or a
     zip. Sheet persists on `AppState.ripperSheetBytes`. See docs/SPRITE_RIPPER.md.
-  - `theme_maker`: six tabs — **Layout** (X/Y/W/H rows + add from ~95 known
+  - `theme_maker`: seven tabs — **Layout** (X/Y/W/H rows + add from ~95 known
     widgets, Courtroom/Lobby toggle, filter), **Colours** (swatch → hue-wheel),
     **Fonts** (size/family/colour/bold/sharp), **Images** (replace any asset with
     PNG/GIF/WebP, grouped slots), **Style** (Qt CSS + sounds + design-option
     scalars), **Arrange** (the draggable `_LayoutCanvas`: drag to move, corner to
-    resize). Import a real theme / New / Random / Export .zip in the header. Edits
-    commit on blur; `_rev` keys refresh fields after import/randomise. See
+    resize, **Show art** toggle to drag the real images), and **Preview** (the
+    read-only `_ClientPreview` — real images + sample text in the theme's fonts).
+    Header: Import / New / Random / **size** button (presets 1080p/720p/AOHD +
+    custom, optional proportional `Ao2Theme.resize`) / Export .zip. Edits commit
+    on blur; `_rev` keys refresh fields after import/randomise. See
     docs/THEME_MAKER.md.
 - `app.dart` (`HomeShell`) hosts a global `CallbackShortcuts` map (undo/redo,
   import/export, add emote, prev/next emote, `Ctrl/⌘+1..9` screen jumps, F1 help)

@@ -107,10 +107,11 @@ Runs natively on **Windows, Linux, macOS, Android, iOS**, and as a **website**
 - **AO2 Theme Maker** — design a full **Attorney Online 2 / webAO** client theme:
   every widget position (**drag them around the courtroom**), every colour, every
   font, every image (PNG/GIF/WebP), sounds and Qt CSS. **Import a real theme** to
-  edit, **roll a random** one, then **export a `.zip`** ready for `base/themes/`.
-  ~95 known widgets, a full image catalogue and every design option — all
-  customizable, with lossless round-trips. See
-  [docs/THEME_MAKER.md](docs/THEME_MAKER.md).
+  edit, **roll a random** one, **resize** to 1080p / 720p / any custom size
+  (scaling the whole layout), see a **real-client preview** before you use it, then
+  **export a `.zip`** ready for `base/themes/`. ~95 known widgets, a full image
+  catalogue and every design option — all customizable, with lossless
+  round-trips. See [docs/THEME_MAKER.md](docs/THEME_MAKER.md).
 
 ### Extend everything
 - **Plugin packs** — plain JSON adding presets, palettes, gradients, animations

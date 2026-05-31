@@ -25,8 +25,11 @@ is preserved verbatim on export.
 - **Random** — roll a cohesive random palette (and optionally fonts / a small
   position jitter). Reproducible per seed.
 
-The header shows the theme **name** (becomes the folder name) and its
-**size** (read from the `courtroom` element).
+The header shows the theme **name** (becomes the folder name) and a **size**
+button (e.g. `1280×720`). Click it to **resize the theme** — pick a preset
+(1920×1080, 720p, the AOHD sizes…) or type a custom width/height, and optionally
+**scale every widget (and font) proportionally** so the whole layout adapts to
+the new resolution in one click.
 
 ---
 
@@ -72,7 +75,15 @@ the client resolves **webp → apng → gif → png** by base name, so it just w
 ### Arrange (drag everything around)
 A live, scaled mock of the courtroom (or lobby). **Drag any widget to move it;
 drag its bottom-right corner to resize.** Mouse deltas map 1:1 to theme pixels at
-any zoom. Tap empty space to deselect. Moves/resizes update the Layout tab too.
+any zoom. Tap empty space to deselect. Toggle **Show art** to drag the *real
+images* (chatbox, buttons, bars…) instead of coloured boxes. Moves/resizes update
+the Layout tab too.
+
+### Preview (real-client look)
+A read-only **approximate render of how it looks in the client** — your images at
+their positions with sample text in your fonts and colours — so you can **see the
+result before exporting or using it**. The scene/character background comes from a
+background pack, so it shows as a placeholder here.
 
 ---
 
@@ -111,15 +122,18 @@ in 1× pixels.
 Engine (pure Dart, no Flutter): `lib/src/theme/`
 - `ao2_theme.dart` — `Ao2Theme` model + `ThemeElement` / `ThemeColor` /
   `ThemeFont` / `ThemeSound` / `ThemeImage` / `ThemeDesign`. `Ao2Theme.fromFiles`
-  parses a folder; `buildFiles()` regenerates it; `starter()` is the default.
+  parses a folder; `buildFiles()` regenerates it; `starter()` is the default;
+  `resize(w, h, {scaleElements, scaleFonts})` rescales the whole layout.
 - `ao2_theme_defaults.dart` — the catalogues (`kCourtroomWidgets`,
   `kThemeColorKeys`, `kFontWidgets`, `kThemeScalars`, `kThemeImageSlots`).
 - `theme_randomizer.dart` — `ThemeRandomizer.randomize` (cohesive HSV palette).
 
-UI: `lib/src/ui/screens/theme_maker_screen.dart` (six tabs + the draggable
-`_LayoutCanvas`). State + export live on `AppState` (`theme`, `importThemeFiles`,
-`randomizeTheme`, `setThemeImage`, `exportTheme`) so the screen survives
-navigation. Editing commits on blur (no per-keystroke recompute).
+UI: `lib/src/ui/screens/theme_maker_screen.dart` (seven tabs: Layout, Colours,
+Fonts, Images, Style, **Arrange** — the draggable `_LayoutCanvas` with a "Show
+art" toggle — and **Preview** — the read-only `_ClientPreview`). State + export
+live on `AppState` (`theme`, `importThemeFiles`, `randomizeTheme`,
+`setThemeImage`, `exportTheme`) so the screen survives navigation. Editing
+commits on blur (no per-keystroke recompute).
 
 Add a new known widget/colour/font/scalar by appending to the lists in
 `ao2_theme_defaults.dart` — the pickers update automatically.

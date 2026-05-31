@@ -26,6 +26,7 @@ class _ThemeMakerScreenState extends State<ThemeMakerScreen> {
   /// Bumped on import/new/randomise so field widgets pick up fresh values.
   int _rev = 0;
   bool _editLobby = false;
+  bool _showArt = true;
   String _filter = '';
 
   void _bump() => setState(() => _rev++);
@@ -46,7 +47,7 @@ class _ThemeMakerScreenState extends State<ThemeMakerScreen> {
     if (theme == null) return _empty(app);
 
     return DefaultTabController(
-      length: 6,
+      length: 7,
       child: Column(
         children: <Widget>[
           _header(app, theme),
@@ -60,6 +61,7 @@ class _ThemeMakerScreenState extends State<ThemeMakerScreen> {
               Tab(text: 'Images'),
               Tab(text: 'Style'),
               Tab(text: 'Arrange'),
+              Tab(text: 'Preview'),
             ],
           ),
           Expanded(
@@ -71,6 +73,7 @@ class _ThemeMakerScreenState extends State<ThemeMakerScreen> {
                 _imagesTab(app, theme),
                 _styleTab(app, theme),
                 _previewTab(app, theme),
+                _clientPreviewTab(theme),
               ],
             ),
           ),
@@ -135,8 +138,11 @@ class _ThemeMakerScreenState extends State<ThemeMakerScreen> {
             ),
           ),
           const SizedBox(width: 8),
-          Text('${theme.width}×${theme.height}',
-              style: const TextStyle(color: Colors.white54, fontSize: 12)),
+          OutlinedButton.icon(
+            onPressed: () => _sizeDialog(app, theme),
+            icon: const Icon(Icons.aspect_ratio_rounded, size: 18),
+            label: Text('${theme.width}×${theme.height}'),
+          ),
           const Spacer(),
           OutlinedButton.icon(
             onPressed: _import,
@@ -847,6 +853,13 @@ class _ThemeMakerScreenState extends State<ThemeMakerScreen> {
                   style: TextStyle(fontSize: 12, color: Colors.white60),
                 ),
               ),
+              FilterChip(
+                label: const Text('Show art'),
+                selected: _showArt,
+                visualDensity: VisualDensity.compact,
+                onSelected: (bool v) => setState(() => _showArt = v),
+              ),
+              const SizedBox(width: 8),
               SegmentedButton<bool>(
                 segments: const <ButtonSegment<bool>>[
                   ButtonSegment<bool>(value: false, label: Text('Courtroom')),
@@ -863,8 +876,10 @@ class _ThemeMakerScreenState extends State<ThemeMakerScreen> {
           child: Padding(
             padding: const EdgeInsets.all(12),
             child: _LayoutCanvas(
-              key: ValueKey<String>('canvas-$_rev-$_editLobby'),
+              key: ValueKey<String>('canvas-$_rev-$_editLobby-$_showArt'),
               design: _editLobby ? theme.lobby : theme.courtroom,
+              theme: theme,
+              showArt: _showArt,
               themeW: theme.width,
               themeH: theme.height,
               onCommit: app.touchTheme,
@@ -873,6 +888,118 @@ class _ThemeMakerScreenState extends State<ThemeMakerScreen> {
         ),
       ],
     );
+  }
+
+  /// Realistic "what it looks like in the client" preview tab.
+  Widget _clientPreviewTab(Ao2Theme theme) {
+    return Column(
+      children: <Widget>[
+        const Padding(
+          padding: EdgeInsets.all(8),
+          child: Text(
+            'Approximate real-client look — your theme\'s images at their '
+            'positions with sample text in your fonts. The scene/character '
+            'background comes from a background pack (shown here as a placeholder).',
+            style: TextStyle(fontSize: 12, color: Colors.white60),
+          ),
+        ),
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: _ClientPreview(theme),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _sizeDialog(AppState app, Ao2Theme theme) async {
+    final TextEditingController wCtl =
+        TextEditingController(text: theme.width.toString());
+    final TextEditingController hCtl =
+        TextEditingController(text: theme.height.toString());
+    bool scaleEls = true, scaleFonts = true;
+    final bool? ok = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext ctx) => StatefulBuilder(
+        builder: (BuildContext ctx, StateSetter setD) => AlertDialog(
+          title: const Text('Theme size'),
+          content: SizedBox(
+            width: 440,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: <Widget>[
+                    for (final ({String label, int w, int h}) p in _sizePresets)
+                      ActionChip(
+                        label: Text(p.label, style: const TextStyle(fontSize: 11)),
+                        onPressed: () => setD(() {
+                          wCtl.text = p.w.toString();
+                          hCtl.text = p.h.toString();
+                        }),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(children: <Widget>[
+                  Expanded(
+                    child: TextField(
+                      controller: wCtl,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(labelText: 'Width', isDense: true),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: TextField(
+                      controller: hCtl,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(labelText: 'Height', isDense: true),
+                    ),
+                  ),
+                ]),
+                CheckboxListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  value: scaleEls,
+                  title: const Text('Scale all widgets to fit the new size'),
+                  onChanged: (bool? v) => setD(() => scaleEls = v ?? true),
+                ),
+                CheckboxListTile(
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                  value: scaleFonts && scaleEls,
+                  title: const Text('Scale font sizes too'),
+                  onChanged: scaleEls
+                      ? (bool? v) => setD(() => scaleFonts = v ?? true)
+                      : null,
+                ),
+              ],
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Cancel')),
+            FilledButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Apply')),
+          ],
+        ),
+      ),
+    );
+    final int w = int.tryParse(wCtl.text.trim()) ?? theme.width;
+    final int h = int.tryParse(hCtl.text.trim()) ?? theme.height;
+    wCtl.dispose();
+    hCtl.dispose();
+    if (ok != true || !mounted) return;
+    theme.resize(w.clamp(64, 8000), h.clamp(64, 8000),
+        scaleElements: scaleEls, scaleFonts: scaleFonts && scaleEls);
+    app.touchTheme();
+    _bump();
   }
 
   // ---------------------------------------------------------------------------
@@ -1009,12 +1136,16 @@ class _LayoutCanvas extends StatefulWidget {
   const _LayoutCanvas({
     super.key,
     required this.design,
+    required this.theme,
+    required this.showArt,
     required this.themeW,
     required this.themeH,
     required this.onCommit,
   });
 
   final ThemeDesign design;
+  final Ao2Theme theme;
+  final bool showArt;
   final int themeW;
   final int themeH;
   final VoidCallback onCommit;
@@ -1070,6 +1201,17 @@ class _LayoutCanvasState extends State<_LayoutCanvas> {
     final double bh = (e.h * scale).clamp(6.0, double.infinity);
     const double handle = 16;
     final bool resizable = bw >= 28 && bh >= 28;
+
+    Widget? art;
+    if (widget.showArt) {
+      final String? base = _widgetImageBase[e.name];
+      final ThemeImage? im =
+          base == null ? null : _themeImageForBase(widget.theme, base);
+      if (im?.bytes != null) {
+        art = Image.memory(im!.bytes!, fit: BoxFit.fill, gaplessPlayback: true);
+      }
+    }
+
     return Positioned(
       left: e.x * scale,
       top: e.y * scale,
@@ -1107,22 +1249,31 @@ class _LayoutCanvasState extends State<_LayoutCanvas> {
         child: Stack(
           children: <Widget>[
             Positioned.fill(
-              child: Container(
-                decoration: BoxDecoration(
-                  border: Border.all(
-                      color: selected ? Colors.white : col.withOpacity(0.9),
-                      width: selected ? 2 : 1),
-                  color: col.withOpacity(selected ? 0.22 : 0.12),
-                ),
-                alignment: Alignment.topLeft,
-                child: Padding(
-                  padding: const EdgeInsets.all(1),
-                  child: Text(e.name,
-                      style: const TextStyle(fontSize: 8, color: Colors.white),
-                      maxLines: 1,
-                      overflow: TextOverflow.clip),
-                ),
-              ),
+              child: art != null
+                  ? Container(
+                      decoration: BoxDecoration(
+                        border: Border.all(
+                            color: selected ? Colors.white : Colors.white24,
+                            width: selected ? 2 : 1),
+                      ),
+                      child: art,
+                    )
+                  : Container(
+                      decoration: BoxDecoration(
+                        border: Border.all(
+                            color: selected ? Colors.white : col.withOpacity(0.9),
+                            width: selected ? 2 : 1),
+                        color: col.withOpacity(selected ? 0.22 : 0.12),
+                      ),
+                      alignment: Alignment.topLeft,
+                      child: Padding(
+                        padding: const EdgeInsets.all(1),
+                        child: Text(e.name,
+                            style: const TextStyle(fontSize: 8, color: Colors.white),
+                            maxLines: 1,
+                            overflow: TextOverflow.clip),
+                      ),
+                    ),
             ),
             if (selected && resizable)
               Positioned(
@@ -1146,3 +1297,171 @@ class _LayoutCanvasState extends State<_LayoutCanvas> {
     return HSVColor.fromAHSV(1, (h < 0 ? h + 360 : h).toDouble(), 0.55, 0.95).toColor();
   }
 }
+
+/// A read-only **approximate-real-client** render: the theme's images drawn at
+/// their courtroom positions, with sample text in the theme's fonts/colours, so
+/// you can see what it'll look like before exporting. The scene/character
+/// background is external (a background pack), shown as a placeholder.
+class _ClientPreview extends StatelessWidget {
+  const _ClientPreview(this.theme);
+
+  final Ao2Theme theme;
+
+  @override
+  Widget build(BuildContext context) {
+    final int tw = theme.width, th = theme.height;
+    if (tw <= 0 || th <= 0) {
+      return const Center(child: Text('Set the courtroom size first.'));
+    }
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints cons) {
+        final double scale = (cons.maxWidth / tw).clamp(0.0, cons.maxHeight / th);
+        if (scale <= 0) return const SizedBox.shrink();
+        return Center(
+          child: Container(
+            width: tw * scale,
+            height: th * scale,
+            clipBehavior: Clip.hardEdge,
+            decoration: BoxDecoration(
+              color: const Color(0xFF0B0B12),
+              border: Border.all(color: Colors.white24),
+            ),
+            child: Stack(
+              children: <Widget>[
+                // viewport first (it's the backdrop), then everything on top.
+                for (final ThemeElement e in theme.courtroom.elements)
+                  if (e.name == 'viewport' && e.w > 0 && e.h > 0)
+                    ..._render(e, scale),
+                for (final ThemeElement e in theme.courtroom.elements)
+                  if (e.name != 'courtroom' && e.name != 'viewport' && e.w > 0 && e.h > 0)
+                    ..._render(e, scale),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  List<Widget> _render(ThemeElement e, double scale) {
+    final Widget? content = _contentFor(e, scale);
+    if (content == null) return const <Widget>[];
+    return <Widget>[
+      Positioned(
+        left: e.x * scale,
+        top: e.y * scale,
+        width: e.w * scale,
+        height: e.h * scale,
+        child: content,
+      ),
+    ];
+  }
+
+  Widget? _contentFor(ThemeElement e, double scale) {
+    if (e.name == 'viewport') {
+      return Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: <Color>[Color(0xFF2A3550), Color(0xFF141A2A)],
+          ),
+        ),
+        alignment: Alignment.center,
+        child: Text('viewport\n(background pack)',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+                fontSize: (9 * scale).clamp(8.0, 18.0), color: Colors.white24)),
+      );
+    }
+    final String? base = _widgetImageBase[e.name];
+    if (base != null) {
+      final ThemeImage? im = _themeImageForBase(theme, base);
+      if (im?.bytes != null) {
+        return Image.memory(im!.bytes!, fit: BoxFit.fill, gaplessPlayback: true);
+      }
+      return null; // known image widget but unset — draw nothing
+    }
+    final String? sample = _widgetSampleText[e.name];
+    if (sample != null) {
+      final ThemeFont? f = theme.font(e.name);
+      final double fontSize = ((f?.size ?? 12) * scale).clamp(6.0, 64.0);
+      return Container(
+        alignment: Alignment.topLeft,
+        child: Text(sample,
+            style: TextStyle(
+              fontFamily: (f?.font.isNotEmpty ?? false) ? f!.font : null,
+              fontSize: fontSize,
+              color: f != null ? Color(f.argb) : Colors.white,
+              fontWeight: (f?.bold ?? false) ? FontWeight.bold : FontWeight.normal,
+            ),
+            maxLines: e.name == 'ic_chatlog' ? 6 : 2,
+            overflow: TextOverflow.ellipsis),
+      );
+    }
+    return null;
+  }
+}
+
+String _baseOfFile(String fileName) {
+  final int dot = fileName.lastIndexOf('.');
+  return dot < 0 ? fileName : fileName.substring(0, dot);
+}
+
+/// Find a theme image by its base name (ignoring extension).
+ThemeImage? _themeImageForBase(Ao2Theme theme, String base) {
+  for (final ThemeImage im in theme.images.values) {
+    if (_baseOfFile(im.fileName) == base) return im;
+  }
+  return null;
+}
+
+/// Common theme sizes (incl. 1080p/720p and the AOHD family).
+const List<({String label, int w, int h})> _sizePresets =
+    <({String label, int w, int h})>[
+  (label: '1920×1080 (1080p)', w: 1920, h: 1080),
+  (label: '1280×720 (720p)', w: 1280, h: 720),
+  (label: '960×544', w: 960, h: 544),
+  (label: '1021×705 (AOHD Mini)', w: 1021, h: 705),
+  (label: '1363×705 (AOHD)', w: 1363, h: 705),
+  (label: '1918×982 (AOHD Ultra)', w: 1918, h: 982),
+  (label: '714×688 (FullChar)', w: 714, h: 688),
+  (label: '256×192 (classic)', w: 256, h: 192),
+];
+
+/// Which image asset (by base name) stands in for a widget in the previews.
+const Map<String, String> _widgetImageBase = <String, String>{
+  'ao2_chatbox': 'chatbox',
+  'hold_it': 'holdit',
+  'objection': 'objection',
+  'take_that': 'takethat',
+  'custom_objection': 'custom',
+  'witness_testimony': 'witnesstestimony',
+  'cross_examination': 'crossexamination',
+  'guilty': 'guilty',
+  'not_guilty': 'notguilty',
+  'defense_bar': 'defensebar10',
+  'prosecution_bar': 'prosecutionbar10',
+  'change_character': 'change_character',
+  'call_mod': 'call_mod',
+  'reload_theme': 'reload_theme',
+  'settings': 'settings',
+  'pair_button': 'pair_button',
+  'mute_button': 'mute',
+  'evidence_button': 'evidence_button',
+  'evidence_background': 'evidence_background',
+  'switch_area_music': 'switch_area_music',
+  'emote_left': 'arrow_left',
+  'emote_right': 'arrow_right',
+  'chat_arrow': 'chat_arrow',
+};
+
+/// Sample strings shown for text widgets in the real-client preview.
+const Map<String, String> _widgetSampleText = <String, String>{
+  'showname': 'Phoenix',
+  'message': "OBJECTION! That testimony doesn't add up.",
+  'ic_chatlog': 'Phoenix: Hold it!\nEdgeworth: ...what?\nJudge: Order!',
+  'music_name': '♪ Pursuit ~ Cornered',
+  'ms_chatlog': '[Server] Welcome to the courtroom.',
+  'server_chatlog': '[Server] Welcome to the courtroom.',
+};

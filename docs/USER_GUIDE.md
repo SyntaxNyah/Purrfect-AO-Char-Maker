@@ -467,8 +467,12 @@ The **Theme** tab is a complete **Attorney Online 2 / webAO** theme editor.
   **Random** for a fresh palette.
 - Tabs: **Layout** (every widget's X/Y/W/H + add any of ~95 known widgets),
   **Colours**, **Fonts**, **Images** (replace any asset with your own PNG/GIF/
-  WebP), **Style** (Qt CSS, sounds, design options), and **Arrange** — a live
-  courtroom where you **drag widgets around and resize them with the mouse**.
+  WebP), **Style** (Qt CSS, sounds, design options), **Arrange** — a live
+  courtroom where you **drag widgets around and resize them with the mouse** (flip
+  on **Show art** to drag the real images) — and **Preview**, a read-only
+  **real-client look** so you can see the result before using it.
+- Click the **size** button (e.g. `1280×720`) to **resize** the theme — pick
+  **1920×1080 / 720p / a custom size**, optionally scaling every widget and font.
 - **Export .zip** gives you a folder ready to drop into the client's
   `base/themes/`.
 
