@@ -46,10 +46,12 @@ Legend: ✅ done · 🟡 partial · ⬜ planned
   (`addSprites`) appends an emote per *new* sprite group without touching the
   existing ini, emotes or edits
 - ✅ **Sprite sheet ripper** (`imaging/sprite_sheet.dart`) — auto-detect
-  (border-background flood + connected components) or uniform grid, tap-to-toggle
-  cells, background removal, add-to-character or zip
+  (border-background flood + connected components), uniform grid, or **manual**
+  (draw/move/resize/delete your own boxes); tap-to-toggle, background removal,
+  add-to-character or zip
 - ✅ **AO2 Theme Maker** (`theme/`) — full client theme editor: drag widgets in a
-  live courtroom (with the real art), edit every position/colour/font/image/sound/
+  live courtroom (real art, **labelled + tooltipped** boxes, **snap-to-grid**,
+  **rebindable arrow-key nudge**), edit every position/colour/font/image/sound/
   CSS/scalar, **resize** to 1080p/720p/custom (proportional `resize`), a
   **real-client preview**, import a real theme, random palette generator, lossless
   `.zip` export for `base/themes/`

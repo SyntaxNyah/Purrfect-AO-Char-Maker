@@ -36,6 +36,14 @@ class _SpriteRipperScreenState extends State<SpriteRipperScreen> {
   final TextEditingController _prefix = TextEditingController(text: 'sprite');
   Timer? _debounce;
 
+  // Manual-mode state: a draft rubber-band + the selected box + drag accumulators.
+  int? _selManual;
+  Rect? _draft;
+  Offset _drawAnchor = Offset.zero;
+  IntRect? _dragStartRect;
+  double _accX = 0, _accY = 0;
+  bool _resizingManual = false;
+
   @override
   void initState() {
     super.initState();
@@ -90,6 +98,7 @@ class _SpriteRipperScreenState extends State<SpriteRipperScreen> {
   void _detect() {
     final img.Image? s = _sheet;
     if (s == null) return;
+    if (_mode == SheetMode.manual) return; // hand-drawn boxes — keep the user's
     final List<IntRect> rects = _mode == SheetMode.auto
         ? SpriteSheet.autoDetect(s, _auto)
         : SpriteSheet.grid(s.width, s.height, _grid);
@@ -173,8 +182,41 @@ class _SpriteRipperScreenState extends State<SpriteRipperScreen> {
                 height: dh,
                 child: Image.memory(_bytes!, fit: BoxFit.fill, gaplessPlayback: true),
               ),
+              // Manual draw layer (under the boxes): drag empty space to draw a
+              // new box; tap empty space to deselect.
+              if (_mode == SheetMode.manual)
+                Positioned(
+                  left: ox,
+                  top: oy,
+                  width: dw,
+                  height: dh,
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => setState(() => _selManual = null),
+                    onPanStart: (DragStartDetails d) => _drawStart(d.localPosition, scale),
+                    onPanUpdate: (DragUpdateDetails d) => _drawUpdate(d.localPosition, scale),
+                    onPanEnd: (_) => _drawEnd(),
+                  ),
+                ),
               for (int i = 0; i < _cells.length; i++)
-                _box(_cells[i], i, ox, oy, scale),
+                _mode == SheetMode.manual
+                    ? _manualBox(_cells[i], i, ox, oy, scale)
+                    : _box(_cells[i], i, ox, oy, scale),
+              if (_draft != null)
+                Positioned(
+                  left: ox + _draft!.left * scale,
+                  top: oy + _draft!.top * scale,
+                  width: _draft!.width * scale,
+                  height: _draft!.height * scale,
+                  child: IgnorePointer(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.amber, width: 1.5),
+                        color: Colors.amber.withOpacity(0.12),
+                      ),
+                    ),
+                  ),
+                ),
             ],
           );
         },
@@ -208,6 +250,154 @@ class _SpriteRipperScreenState extends State<SpriteRipperScreen> {
     );
   }
 
+  // ---- manual mode: draw / move / resize / delete boxes ----
+
+  void _drawStart(Offset local, double scale) {
+    _drawAnchor = Offset(local.dx / scale, local.dy / scale);
+    setState(() {
+      _selManual = null;
+      _draft = Rect.fromPoints(_drawAnchor, _drawAnchor);
+    });
+  }
+
+  void _drawUpdate(Offset local, double scale) {
+    final Offset cur = Offset(local.dx / scale, local.dy / scale);
+    setState(() => _draft = Rect.fromPoints(_drawAnchor, cur));
+  }
+
+  void _drawEnd() {
+    final Rect? r = _draft;
+    final img.Image? s = _sheet;
+    _draft = null;
+    if (r == null || s == null) {
+      setState(() {});
+      return;
+    }
+    final int x = r.left.round().clamp(0, s.width - 1);
+    final int y = r.top.round().clamp(0, s.height - 1);
+    final int w = r.width.round().clamp(1, s.width - x);
+    final int h = r.height.round().clamp(1, s.height - y);
+    if (w < 6 || h < 6) {
+      setState(() {}); // ignore tiny accidental drags
+      return;
+    }
+    final String prefix = _prefix.text.trim().isEmpty ? 'sprite' : _prefix.text.trim();
+    setState(() {
+      _cells.add(SheetCell(IntRect(x, y, w, h), name: '$prefix${_cells.length + 1}'));
+      _selManual = _cells.length - 1;
+    });
+  }
+
+  Widget _manualBox(SheetCell c, int i, double ox, double oy, double scale) {
+    final bool selected = _selManual == i;
+    final double bw = c.rect.w * scale, bh = c.rect.h * scale;
+    const double handle = 16;
+    final Color col = selected ? Colors.amber : Colors.tealAccent;
+    return Positioned(
+      left: ox + c.rect.x * scale,
+      top: oy + c.rect.y * scale,
+      width: bw,
+      height: bh,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => setState(() => _selManual = i),
+        onPanStart: (DragStartDetails d) {
+          _accX = 0;
+          _accY = 0;
+          _resizingManual =
+              d.localPosition.dx > bw - handle && d.localPosition.dy > bh - handle;
+          _dragStartRect = c.rect;
+          setState(() => _selManual = i);
+        },
+        onPanUpdate: (DragUpdateDetails d) {
+          _accX += d.delta.dx;
+          _accY += d.delta.dy;
+          final IntRect sr = _dragStartRect!;
+          setState(() {
+            if (_resizingManual) {
+              c.rect = IntRect(
+                  sr.x,
+                  sr.y,
+                  (sr.w + (_accX / scale).round()).clamp(4, 1 << 20),
+                  (sr.h + (_accY / scale).round()).clamp(4, 1 << 20));
+            } else {
+              c.rect = IntRect(sr.x + (_accX / scale).round(),
+                  sr.y + (_accY / scale).round(), sr.w, sr.h);
+            }
+          });
+        },
+        child: Stack(
+          children: <Widget>[
+            Positioned.fill(
+              child: Container(
+                decoration: BoxDecoration(
+                  border: Border.all(color: col, width: selected ? 2 : 1.5),
+                  color: Colors.tealAccent.withOpacity(0.08),
+                ),
+                alignment: Alignment.topLeft,
+                child: Container(
+                  color: col,
+                  padding: const EdgeInsets.symmetric(horizontal: 2),
+                  child: Text('${i + 1}',
+                      style: const TextStyle(fontSize: 9, color: Colors.black)),
+                ),
+              ),
+            ),
+            if (selected)
+              Positioned(
+                right: 0,
+                top: 0,
+                child: GestureDetector(
+                  onTap: () => setState(() {
+                    _cells.removeAt(i);
+                    _selManual = null;
+                  }),
+                  child: Container(
+                    color: Colors.red,
+                    padding: const EdgeInsets.all(1),
+                    child: const Icon(Icons.close, size: 11, color: Colors.white),
+                  ),
+                ),
+              ),
+            if (selected)
+              Positioned(
+                right: 0,
+                bottom: 0,
+                child: Container(
+                  width: handle,
+                  height: handle,
+                  color: Colors.amber,
+                  child: const Icon(Icons.open_in_full, size: 9, color: Colors.black),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  List<Widget> _manualControls() {
+    return <Widget>[
+      const Text(
+        'Drag on the sheet to draw a sprite box. Drag a box to move it, drag its '
+        'corner to resize, tap to select, then × to delete. Perfect for grouping '
+        'sprites or fixing what auto-detect missed.',
+        style: TextStyle(fontSize: 12, color: Colors.white70),
+      ),
+      const SizedBox(height: 8),
+      OutlinedButton.icon(
+        onPressed: _cells.isEmpty
+            ? null
+            : () => setState(() {
+                  _cells.clear();
+                  _selManual = null;
+                }),
+        icon: const Icon(Icons.clear_all_rounded, size: 18),
+        label: const Text('Clear boxes'),
+      ),
+    ];
+  }
+
   Widget _controls() {
     return ListView(
       padding: const EdgeInsets.all(12),
@@ -232,9 +422,11 @@ class _SpriteRipperScreenState extends State<SpriteRipperScreen> {
         SegmentedButton<SheetMode>(
           segments: const <ButtonSegment<SheetMode>>[
             ButtonSegment<SheetMode>(
-                value: SheetMode.auto, label: Text('Auto detect'), icon: Icon(Icons.auto_fix_high)),
+                value: SheetMode.auto, label: Text('Auto'), icon: Icon(Icons.auto_fix_high)),
             ButtonSegment<SheetMode>(
                 value: SheetMode.grid, label: Text('Grid'), icon: Icon(Icons.grid_4x4)),
+            ButtonSegment<SheetMode>(
+                value: SheetMode.manual, label: Text('Manual'), icon: Icon(Icons.draw_outlined)),
           ],
           selected: <SheetMode>{_mode},
           onSelectionChanged: (Set<SheetMode> s) {
@@ -243,7 +435,12 @@ class _SpriteRipperScreenState extends State<SpriteRipperScreen> {
           },
         ),
         const SizedBox(height: 12),
-        if (_mode == SheetMode.auto) ..._autoControls() else ..._gridControls(),
+        if (_mode == SheetMode.auto)
+          ..._autoControls()
+        else if (_mode == SheetMode.grid)
+          ..._gridControls()
+        else
+          ..._manualControls(),
         const Divider(height: 24),
         _removeBgControls(),
         const Divider(height: 24),
@@ -406,6 +603,9 @@ class _SpriteRipperScreenState extends State<SpriteRipperScreen> {
           value: value.clamp(min, max),
           min: min,
           max: max,
+          // Integer steps so dragging snaps and ←/→/↑/↓ (when focused) nudge by 1.
+          divisions: (max - min).round().clamp(1, 1000),
+          label: '${value.round()}',
           onChanged: onChanged,
         ),
       ],

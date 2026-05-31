@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:archive/archive.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart' show LogicalKeyboardKey;
 import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
 
@@ -1222,6 +1223,32 @@ class AppState extends ChangeNotifier {
   Ao2Theme? theme;
 
   bool get hasTheme => theme != null;
+
+  /// **Rebindable** keys for nudging the selected widget in the Theme Maker's
+  /// Arrange canvas. Held here so the choice persists across navigation. Default
+  /// = the arrow keys; the user can remap each direction to any key.
+  final Map<String, LogicalKeyboardKey> nudgeKeys = <String, LogicalKeyboardKey>{
+    'up': LogicalKeyboardKey.arrowUp,
+    'down': LogicalKeyboardKey.arrowDown,
+    'left': LogicalKeyboardKey.arrowLeft,
+    'right': LogicalKeyboardKey.arrowRight,
+  };
+
+  /// Rebind one nudge direction (`up`/`down`/`left`/`right`) to [key].
+  void setNudgeKey(String dir, LogicalKeyboardKey key) {
+    nudgeKeys[dir] = key;
+    notifyListeners();
+  }
+
+  /// Restore the default arrow-key nudge bindings.
+  void resetNudgeKeys() {
+    nudgeKeys
+      ..['up'] = LogicalKeyboardKey.arrowUp
+      ..['down'] = LogicalKeyboardKey.arrowDown
+      ..['left'] = LogicalKeyboardKey.arrowLeft
+      ..['right'] = LogicalKeyboardKey.arrowRight;
+    notifyListeners();
+  }
 
   /// Start a fresh theme from the built-in starter layout.
   void newTheme() {

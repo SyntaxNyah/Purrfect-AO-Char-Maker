@@ -35,13 +35,23 @@ the new resolution in one click.
 
 ## 2. The tabs
 
+### Courtroom vs Lobby
+A theme describes **two screens**, and the Layout/Arrange tabs have a
+**Courtroom / Lobby** toggle (with icons + hover tooltips + a caption) to pick
+which you're editing:
+- ⚖️ **Courtroom** — the in-trial screen (`courtroom_design.ini`): viewport,
+  chatbox, showname/message, emote + interjection buttons, penalty bars, evidence,
+  timers.
+- 🖥️ **Lobby** — the server-select screen you see before joining
+  (`lobby_design.ini`): server list, search, connect/refresh/favourites, player
+  count, description, loading bar.
+
 ### Layout
-Every positioned widget as an editable **X / Y / W / H** row. Toggle
-**Courtroom / Lobby**, filter by name, and **Add** any of the **~95 known
-widgets** (a searchable picker grouped by area — Core, IC, OOC, Music/Area,
-Pairing, Mute, Emotes, Dropdowns, Interjections, Judge, Penalty, Evidence, Char
-select, Timers, Sound, Misc, Checkboxes) — or type a custom name. Editing here
-and dragging in **Arrange** stay in sync.
+Every positioned widget as an editable **X / Y / W / H** row. Filter by name, and
+**Add** any of the **~95 known widgets** (a searchable picker grouped by area —
+Core, IC, OOC, Music/Area, Pairing, Mute, Emotes, Dropdowns, Interjections, Judge,
+Penalty, Evidence, Char select, Timers, Sound, Misc, Checkboxes) — or type a
+custom name. Editing here and dragging in **Arrange** stay in sync.
 
 ### Colours
 Every `r, g, b` colour with a swatch — tap to open the hue-wheel + hex picker.
@@ -73,11 +83,23 @@ the client resolves **webp → apng → gif → png** by base name, so it just w
   `chatbox_always_show`, … Add from the known list or a custom key.
 
 ### Arrange (drag everything around)
-A live, scaled mock of the courtroom (or lobby). **Drag any widget to move it;
-drag its bottom-right corner to resize.** Mouse deltas map 1:1 to theme pixels at
-any zoom. Tap empty space to deselect. Toggle **Show art** to drag the *real
-images* (chatbox, buttons, bars…) instead of coloured boxes. Moves/resizes update
-the Layout tab too.
+A live, scaled mock of the courtroom (or lobby). **Every box is labelled with its
+widget name, and hovering a box shows what it does** (e.g. *“objection — Objection
+button”*). **Drag any widget to move it; drag its bottom-right corner to resize.**
+Mouse deltas map 1:1 to theme pixels at any zoom. Tap empty space to deselect.
+Toggle **Show art** to drag the *real images* (chatbox, buttons, bars…) instead of
+coloured boxes — labels stay on top either way. Moves/resizes update the Layout
+tab too.
+
+Pick a **Grid** (5–50px) from the dropdown to overlay a grid and **snap** every
+move/resize to it — set it once and you get pixel-perfect alignment without
+fiddling with proportions. **Keyboard:** with a box selected, the **arrow keys**
+nudge it 1px (**Shift+arrow** = 10px, **Ctrl/Alt+arrow** = resize instead of
+move) — so snap to a grid for the rough layout, then arrow-key for the last pixel.
+The four nudge keys are **rebindable**: click the **⌨ keyboard button** in Arrange
+to assign any key to up / down / left / right (Reset restores the arrows). (Any
+**slider** in the app is also arrow-key adjustable once focused — Tab to it, then
+←/→/↑/↓.)
 
 ### Preview (real-client look)
 A read-only **approximate render of how it looks in the client** — your images at

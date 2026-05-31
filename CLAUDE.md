@@ -415,7 +415,8 @@ The central model.
   it stays responsive, **lossless** — bulk must not degrade quality),
   **sprite-sheet ripping** (`loadSheet`/`exportSheetCells`), **AO2 theme** state +
   export (`theme`, `importThemeFiles`, `newTheme`, `randomizeTheme`,
-  `setThemeImage`, `touchTheme`, `exportTheme`), mixer save, export zip/ini. Read
+  `setThemeImage`, `touchTheme`, `exportTheme`) + rebindable Arrange nudge keys
+  (`nudgeKeys`/`setNudgeKey`/`resetNudgeKeys`), mixer save, export zip/ini. Read
   it before adding a screen.
   - **Recolour/edit write back in place** via `_writeSpriteInPlace(rel,image)`:
     re-encodes in the file's own format (WebP via the encoder, APNG/PNG/GIF
@@ -491,16 +492,27 @@ The central model.
     cached image and moved/scaled/rotated as a live Flutter transform; only Save
     composites full-res (`placeCentered` per snip / `flatten` for layers).
   - `sprite_ripper`: load a sheet → **Auto detect** (sliders: tolerance/min
-    size/gap/padding/trim) or **Grid** (cols/rows/offset/gutter/cell). Overlay
-    boxes are **tap-to-toggle**; export adds to the character (`addSprites`) or a
-    zip. Sheet persists on `AppState.ripperSheetBytes`. See docs/SPRITE_RIPPER.md.
+    size/gap/padding/trim), **Grid** (cols/rows/offset/gutter/cell), or **Manual**
+    (`SheetMode.manual` — drag empty space to draw a box, drag a box to move,
+    corner to resize, ×/Clear to delete; `_manualBox`/`_drawStart/Update/End`;
+    Auto/Grid regenerate cells, Manual keeps them). Auto/grid overlay boxes are
+    **tap-to-toggle**; export adds to the character (`addSprites`) or a zip. Sheet
+    persists on `AppState.ripperSheetBytes`. Sliders use `divisions` (arrow-key
+    friendly). See docs/SPRITE_RIPPER.md.
   - `theme_maker`: seven tabs — **Layout** (X/Y/W/H rows + add from ~95 known
     widgets, Courtroom/Lobby toggle, filter), **Colours** (swatch → hue-wheel),
     **Fonts** (size/family/colour/bold/sharp), **Images** (replace any asset with
     PNG/GIF/WebP, grouped slots), **Style** (Qt CSS + sounds + design-option
     scalars), **Arrange** (the draggable `_LayoutCanvas`: drag to move, corner to
-    resize, **Show art** toggle to drag the real images), and **Preview** (the
+    resize, **Show art** toggle to drag the real images; **every box is labelled +
+    a hover tooltip** of what it does via `_widgetHint`; a **Grid** dropdown snaps
+    drags/resizes — `_snap`/`_GridPainter`; **arrow-key nudge** via `_handleKey`
+    on a `Focus` — arrows 1px, Shift 10px, Ctrl/Alt resize; the direction keys are
+    **rebindable** — `AppState.nudgeKeys`, `_rebindDialog`/`_KeyCaptureDialog`),
+    and **Preview** (the
     read-only `_ClientPreview` — real images + sample text in the theme's fonts).
+    The Courtroom/Lobby selector (`_courtroomLobbyToggle` + `_modeCaption`, shared
+    by Layout/Arrange) has icons + tooltips so each AO2 screen is obvious.
     Header: Import / New / Random / **size** button (presets 1080p/720p/AOHD +
     custom, optional proportional `Ao2Theme.resize`) / Export .zip. Edits commit
     on blur; `_rev` keys refresh fields after import/randomise. See

@@ -36,6 +36,18 @@ Tune it:
 For evenly-spaced sheets: set **Columns / Rows**, **Offset X/Y**, **Gutter X/Y**
 and optional fixed **Cell W/H** (0 = derive to fill the sheet).
 
+### Manual (draw your own boxes)
+A custom selection tool for full control — great for grouping sprites or fixing
+anything auto-detect missed:
+- **Drag on the sheet** to draw a new sprite box.
+- **Drag a box** to move it; **drag its bottom-right corner** to resize.
+- **Tap** a box to select it, then the **×** deletes it.
+- **Clear boxes** empties the list.
+
+Switching *to* Manual keeps whatever boxes are already there — so you can run
+**Auto** first and then hand-tweak the result. Switching back to Auto/Grid
+re-detects from scratch.
+
 ## 3. Refine
 
 Each detected sprite is a numbered box on the sheet. **Tap a box to
@@ -70,4 +82,7 @@ Engine (pure Dart, no Flutter): `lib/src/imaging/sprite_sheet.dart`
 
 UI: `lib/src/ui/screens/sprite_ripper_screen.dart`. Export goes through
 `AppState.exportSheetCells(...)` (encode PNGs → `addSprites` or zip + download);
-the loaded sheet persists on `AppState.ripperSheetBytes`.
+the loaded sheet persists on `AppState.ripperSheetBytes`. `SheetMode.manual` is
+UI-only — you draw/move/resize `SheetCell`s on the sheet (the engine just
+`extract`s them); Auto/Grid regenerate the cells, Manual leaves them alone. The
+sliders use `divisions` so dragging snaps and arrow keys nudge by 1 once focused.

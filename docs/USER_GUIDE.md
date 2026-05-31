@@ -448,9 +448,14 @@ Got a **sprite sheet** (a grid or collage of expressions in one image)? The
 **Ripper** tab cuts it into individual transparent sprites.
 
 1. **Load sheet** and pick the image.
-2. **Auto detect** (any layout — it flood-fills the background from the edges, so
-   white-on-white works) or **Grid** (set columns/rows/offset/gutter). Tune the
-   sliders until each sprite has its own box.
+2. Pick a mode:
+   - **Auto detect** (any layout — it flood-fills the background from the edges,
+     so white-on-white works). Tune the sliders until each sprite has its own box.
+   - **Grid** (uniform sheets — set columns/rows/offset/gutter).
+   - **Manual** — draw your own boxes: drag on the sheet to make a box, drag a box
+     to move it, drag its corner to resize, tap then **×** to delete. Great for
+     grouping sprites or fixing what auto-detect missed (it keeps any boxes you
+     already have).
 3. **Tap boxes** to include/exclude; **All / None** to bulk-toggle.
 4. Keep **Remove background** on for transparent sprites.
 5. **Add to character** (becomes new emotes) or **Download as .zip**.
@@ -471,6 +476,15 @@ The **Theme** tab is a complete **Attorney Online 2 / webAO** theme editor.
   courtroom where you **drag widgets around and resize them with the mouse** (flip
   on **Show art** to drag the real images) — and **Preview**, a read-only
   **real-client look** so you can see the result before using it.
+- The **Courtroom / Lobby** toggle (on Layout & Arrange) picks which screen you
+  edit: **⚖️ Courtroom** = the in-trial screen, **🖥️ Lobby** = the server-select
+  screen you see before joining. In **Arrange**, every box is **labelled** and
+  **hovering shows what it does**.
+- In **Arrange**, set a **Grid** (5–50px) to **snap** drags/resizes for
+  pixel-perfect alignment, and use the **arrow keys** on a selected box to nudge
+  it 1px (**Shift** = 10px, **Ctrl/Alt** = resize). The **⌨ button** rebinds those
+  nudge keys to anything you like. Any **slider** in the app also responds to
+  arrow keys once you Tab to it.
 - Click the **size** button (e.g. `1280×720`) to **resize** the theme — pick
   **1920×1080 / 720p / a custom size**, optionally scaling every widget and font.
 - **Export .zip** gives you a folder ready to drop into the client's

@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:provider/provider.dart';
 
@@ -28,6 +29,9 @@ class _ThemeMakerScreenState extends State<ThemeMakerScreen> {
   bool _editLobby = false;
   bool _showArt = true;
   String _filter = '';
+
+  /// Arrange-canvas snap grid in theme px (0 = off). Drags/resizes snap to it.
+  int _gridSize = 0;
 
   void _bump() => setState(() => _rev++);
 
@@ -224,14 +228,7 @@ class _ThemeMakerScreenState extends State<ThemeMakerScreen> {
         Padding(
           padding: const EdgeInsets.all(8),
           child: Row(children: <Widget>[
-            SegmentedButton<bool>(
-              segments: const <ButtonSegment<bool>>[
-                ButtonSegment<bool>(value: false, label: Text('Courtroom')),
-                ButtonSegment<bool>(value: true, label: Text('Lobby')),
-              ],
-              selected: <bool>{_editLobby},
-              onSelectionChanged: (Set<bool> s) => setState(() => _editLobby = s.first),
-            ),
+            _courtroomLobbyToggle(),
             const SizedBox(width: 8),
             Expanded(
               child: TextField(
@@ -250,6 +247,7 @@ class _ThemeMakerScreenState extends State<ThemeMakerScreen> {
             ),
           ]),
         ),
+        _modeCaption(),
         const Divider(height: 1),
         Expanded(
           child: ListView.builder(
@@ -847,31 +845,50 @@ class _ThemeMakerScreenState extends State<ThemeMakerScreen> {
             children: <Widget>[
               const Expanded(
                 child: Text(
-                  'Drag a widget to move it; drag its bottom-right corner to '
-                  'resize. Tap empty space to deselect. Editing here updates the '
-                  'Layout tab too.',
+                  'Every box is labelled — hover for what it does. Drag to move, '
+                  'corner to resize, arrows to nudge. Use Grid to snap.',
                   style: TextStyle(fontSize: 12, color: Colors.white60),
                 ),
               ),
-              FilterChip(
-                label: const Text('Show art'),
-                selected: _showArt,
-                visualDensity: VisualDensity.compact,
-                onSelected: (bool v) => setState(() => _showArt = v),
+              Tooltip(
+                message: 'Snap dragging/resizing to a pixel grid (great for '
+                    'pixel-perfect alignment)',
+                child: DropdownButton<int>(
+                  value: _gridSize,
+                  isDense: true,
+                  underline: const SizedBox.shrink(),
+                  items: const <DropdownMenuItem<int>>[
+                    DropdownMenuItem<int>(value: 0, child: Text('Grid: off')),
+                    DropdownMenuItem<int>(value: 5, child: Text('Grid: 5px')),
+                    DropdownMenuItem<int>(value: 10, child: Text('Grid: 10px')),
+                    DropdownMenuItem<int>(value: 20, child: Text('Grid: 20px')),
+                    DropdownMenuItem<int>(value: 25, child: Text('Grid: 25px')),
+                    DropdownMenuItem<int>(value: 50, child: Text('Grid: 50px')),
+                  ],
+                  onChanged: (int? v) => setState(() => _gridSize = v ?? 0),
+                ),
               ),
               const SizedBox(width: 8),
-              SegmentedButton<bool>(
-                segments: const <ButtonSegment<bool>>[
-                  ButtonSegment<bool>(value: false, label: Text('Courtroom')),
-                  ButtonSegment<bool>(value: true, label: Text('Lobby')),
-                ],
-                selected: <bool>{_editLobby},
-                onSelectionChanged: (Set<bool> s) =>
-                    setState(() => _editLobby = s.first),
+              Tooltip(
+                message: 'Show each widget\'s real image instead of a coloured box',
+                child: FilterChip(
+                  label: const Text('Show art'),
+                  selected: _showArt,
+                  visualDensity: VisualDensity.compact,
+                  onSelected: (bool v) => setState(() => _showArt = v),
+                ),
+              ),
+              const SizedBox(width: 8),
+              _courtroomLobbyToggle(),
+              IconButton(
+                tooltip: 'Rebind the nudge keys',
+                icon: const Icon(Icons.keyboard_rounded),
+                onPressed: () => _rebindDialog(app),
               ),
             ],
           ),
         ),
+        _modeCaption(),
         Expanded(
           child: Padding(
             padding: const EdgeInsets.all(12),
@@ -880,6 +897,8 @@ class _ThemeMakerScreenState extends State<ThemeMakerScreen> {
               design: _editLobby ? theme.lobby : theme.courtroom,
               theme: theme,
               showArt: _showArt,
+              gridSize: _gridSize,
+              keys: app.nudgeKeys,
               themeW: theme.width,
               themeH: theme.height,
               onCommit: app.touchTheme,
@@ -1005,6 +1024,119 @@ class _ThemeMakerScreenState extends State<ThemeMakerScreen> {
   // ---------------------------------------------------------------------------
   // shared helpers
   // ---------------------------------------------------------------------------
+
+  /// Courtroom vs Lobby selector — with icons + tooltips so it's clear each is a
+  /// separate AO2 screen (trial vs server-select). Shared by Layout and Arrange.
+  Widget _courtroomLobbyToggle() {
+    return SegmentedButton<bool>(
+      showSelectedIcon: false,
+      segments: const <ButtonSegment<bool>>[
+        ButtonSegment<bool>(
+          value: false,
+          label: Text('Courtroom'),
+          icon: Icon(Icons.gavel_rounded),
+          tooltip: 'The in-trial screen — viewport, chatbox, buttons, penalty '
+              'bars (courtroom_design.ini)',
+        ),
+        ButtonSegment<bool>(
+          value: true,
+          label: Text('Lobby'),
+          icon: Icon(Icons.dns_rounded),
+          tooltip: 'The server-select screen you see before joining — server '
+              'list, connect, player count (lobby_design.ini)',
+        ),
+      ],
+      selected: <bool>{_editLobby},
+      onSelectionChanged: (Set<bool> s) => setState(() => _editLobby = s.first),
+    );
+  }
+
+  /// Rebind the Arrange nudge keys — click **Set** on a direction, then press the
+  /// key you want. Stored on [AppState.nudgeKeys] so it sticks across navigation.
+  Future<void> _rebindDialog(AppState app) async {
+    await showDialog<void>(
+      context: context,
+      builder: (BuildContext ctx) => StatefulBuilder(
+        builder: (BuildContext ctx, StateSetter setD) {
+          Widget row(String dir, String label) => Padding(
+                padding: const EdgeInsets.symmetric(vertical: 4),
+                child: Row(children: <Widget>[
+                  SizedBox(width: 90, child: Text(label)),
+                  Expanded(
+                    child: Text(_keyLabel(app.nudgeKeys[dir]!),
+                        style: const TextStyle(fontWeight: FontWeight.w600)),
+                  ),
+                  OutlinedButton(
+                    onPressed: () async {
+                      final LogicalKeyboardKey? nk = await _captureKey();
+                      if (nk != null) {
+                        app.setNudgeKey(dir, nk);
+                        setD(() {});
+                      }
+                    },
+                    child: const Text('Set'),
+                  ),
+                ]),
+              );
+          return AlertDialog(
+            title: const Text('Arrange nudge keys'),
+            content: SizedBox(
+              width: 360,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  row('up', 'Move up'),
+                  row('down', 'Move down'),
+                  row('left', 'Move left'),
+                  row('right', 'Move right'),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Click Set, then press any key. While nudging, hold Shift for '
+                    '10px steps and Ctrl/Alt to resize instead of move.',
+                    style: TextStyle(fontSize: 11, color: Colors.white60),
+                  ),
+                ],
+              ),
+            ),
+            actions: <Widget>[
+              TextButton(
+                onPressed: () {
+                  app.resetNudgeKeys();
+                  setD(() {});
+                },
+                child: const Text('Reset to arrows'),
+              ),
+              FilledButton(
+                  onPressed: () => Navigator.pop(ctx), child: const Text('Done')),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Future<LogicalKeyboardKey?> _captureKey() => showDialog<LogicalKeyboardKey>(
+        context: context,
+        builder: (BuildContext ctx) => const _KeyCaptureDialog(),
+      );
+
+  String _keyLabel(LogicalKeyboardKey key) {
+    if (key.keyLabel.isNotEmpty) return key.keyLabel;
+    return key.debugName ?? '0x${key.keyId.toRadixString(16)}';
+  }
+
+  /// One-line caption spelling out which screen is being edited.
+  Widget _modeCaption() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(10, 0, 10, 6),
+      child: Text(
+        _editLobby
+            ? 'Editing the Lobby — the server browser you see before joining a game.'
+            : 'Editing the Courtroom — the main in-trial screen (sprites, chatbox, buttons).',
+        style: const TextStyle(fontSize: 11, color: Colors.white60),
+      ),
+    );
+  }
 
   Future<int?> _pickColour(int argb) async {
     Color picked = Color(argb);
@@ -1138,6 +1270,8 @@ class _LayoutCanvas extends StatefulWidget {
     required this.design,
     required this.theme,
     required this.showArt,
+    required this.gridSize,
+    required this.keys,
     required this.themeW,
     required this.themeH,
     required this.onCommit,
@@ -1146,6 +1280,8 @@ class _LayoutCanvas extends StatefulWidget {
   final ThemeDesign design;
   final Ao2Theme theme;
   final bool showArt;
+  final int gridSize;
+  final Map<String, LogicalKeyboardKey> keys;
   final int themeW;
   final int themeH;
   final VoidCallback onCommit;
@@ -1159,6 +1295,52 @@ class _LayoutCanvasState extends State<_LayoutCanvas> {
   bool _resizing = false;
   double _accX = 0, _accY = 0;
   int _startX = 0, _startY = 0, _startW = 0, _startH = 0;
+  final FocusNode _focus = FocusNode(debugLabel: 'theme layout canvas');
+
+  @override
+  void dispose() {
+    _focus.dispose();
+    super.dispose();
+  }
+
+  /// Keyboard nudging of the selected widget: **arrows** move 1px, **Shift+arrow**
+  /// 10px, **Ctrl/Alt+arrow** resizes instead of moving.
+  KeyEventResult _handleKey(FocusNode node, KeyEvent event) {
+    final ThemeElement? e = _sel;
+    if (e == null) return KeyEventResult.ignored;
+    if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
+      return KeyEventResult.ignored;
+    }
+    int dx = 0, dy = 0;
+    final LogicalKeyboardKey k = event.logicalKey;
+    if (k == widget.keys['left']) {
+      dx = -1;
+    } else if (k == widget.keys['right']) {
+      dx = 1;
+    } else if (k == widget.keys['up']) {
+      dy = -1;
+    } else if (k == widget.keys['down']) {
+      dy = 1;
+    } else {
+      return KeyEventResult.ignored;
+    }
+    final int step = HardwareKeyboard.instance.isShiftPressed ? 10 : 1;
+    dx *= step;
+    dy *= step;
+    final bool resize = HardwareKeyboard.instance.isControlPressed ||
+        HardwareKeyboard.instance.isAltPressed;
+    setState(() {
+      if (resize) {
+        e.w = (e.w + dx).clamp(1, 1 << 20);
+        e.h = (e.h + dy).clamp(1, 1 << 20);
+      } else {
+        e.x += dx;
+        e.y += dy;
+      }
+    });
+    widget.onCommit();
+    return KeyEventResult.handled;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1166,15 +1348,21 @@ class _LayoutCanvasState extends State<_LayoutCanvas> {
     if (tw <= 0 || th <= 0) {
       return const Center(child: Text('Set the courtroom size first.'));
     }
-    return LayoutBuilder(
-      builder: (BuildContext context, BoxConstraints cons) {
-        final double scale = (cons.maxWidth / tw).clamp(0.0, cons.maxHeight / th);
-        if (scale <= 0) return const SizedBox.shrink();
-        final double dw = tw * scale, dh = th * scale;
-        return Center(
-          child: GestureDetector(
-            onTap: () => setState(() => _sel = null),
-            child: Container(
+    return Focus(
+      focusNode: _focus,
+      onKeyEvent: _handleKey,
+      child: LayoutBuilder(
+        builder: (BuildContext context, BoxConstraints cons) {
+          final double scale = (cons.maxWidth / tw).clamp(0.0, cons.maxHeight / th);
+          if (scale <= 0) return const SizedBox.shrink();
+          final double dw = tw * scale, dh = th * scale;
+          return Center(
+            child: GestureDetector(
+              onTap: () {
+                _focus.requestFocus();
+                setState(() => _sel = null);
+              },
+              child: Container(
               width: dw,
               height: dh,
               decoration: BoxDecoration(
@@ -1183,6 +1371,14 @@ class _LayoutCanvasState extends State<_LayoutCanvas> {
               ),
               child: Stack(
                 children: <Widget>[
+                  if (widget.gridSize > 0)
+                    Positioned.fill(
+                      child: IgnorePointer(
+                        child: CustomPaint(
+                          painter: _GridPainter(widget.gridSize * scale),
+                        ),
+                      ),
+                    ),
                   for (final ThemeElement e in widget.design.elements)
                     if (e.name != 'courtroom' && e.w > 0 && e.h > 0) _box(e, scale),
                 ],
@@ -1191,6 +1387,7 @@ class _LayoutCanvasState extends State<_LayoutCanvas> {
           ),
         );
       },
+      ),
     );
   }
 
@@ -1212,90 +1409,134 @@ class _LayoutCanvasState extends State<_LayoutCanvas> {
       }
     }
 
+    final String hint = _widgetHint(e.name) ?? '';
+    final String tip = hint.isEmpty ? e.name : '${e.name} — $hint';
+
     return Positioned(
       left: e.x * scale,
       top: e.y * scale,
       width: bw,
       height: bh,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: () => setState(() => _sel = e),
-        onPanStart: (DragStartDetails d) {
-          _accX = 0;
-          _accY = 0;
-          _resizing = resizable &&
-              d.localPosition.dx > bw - handle &&
-              d.localPosition.dy > bh - handle;
-          _startX = e.x;
-          _startY = e.y;
-          _startW = e.w;
-          _startH = e.h;
-          setState(() => _sel = e);
-        },
-        onPanUpdate: (DragUpdateDetails d) {
-          _accX += d.delta.dx;
-          _accY += d.delta.dy;
-          setState(() {
-            if (_resizing) {
-              e.w = (_startW + (_accX / scale).round()).clamp(1, 1 << 20);
-              e.h = (_startH + (_accY / scale).round()).clamp(1, 1 << 20);
-            } else {
-              e.x = _startX + (_accX / scale).round();
-              e.y = _startY + (_accY / scale).round();
-            }
-          });
-        },
-        onPanEnd: (_) => widget.onCommit(),
-        child: Stack(
-          children: <Widget>[
-            Positioned.fill(
-              child: art != null
-                  ? Container(
-                      decoration: BoxDecoration(
-                        border: Border.all(
-                            color: selected ? Colors.white : Colors.white24,
-                            width: selected ? 2 : 1),
-                      ),
-                      child: art,
-                    )
-                  : Container(
-                      decoration: BoxDecoration(
-                        border: Border.all(
-                            color: selected ? Colors.white : col.withOpacity(0.9),
-                            width: selected ? 2 : 1),
-                        color: col.withOpacity(selected ? 0.22 : 0.12),
-                      ),
-                      alignment: Alignment.topLeft,
-                      child: Padding(
-                        padding: const EdgeInsets.all(1),
-                        child: Text(e.name,
-                            style: const TextStyle(fontSize: 8, color: Colors.white),
-                            maxLines: 1,
-                            overflow: TextOverflow.clip),
-                      ),
-                    ),
-            ),
-            if (selected && resizable)
-              Positioned(
-                right: 0,
-                bottom: 0,
+      child: Tooltip(
+        message: tip,
+        waitDuration: const Duration(milliseconds: 350),
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: () {
+            _focus.requestFocus();
+            setState(() => _sel = e);
+          },
+          onPanStart: (DragStartDetails d) {
+            _focus.requestFocus();
+            _accX = 0;
+            _accY = 0;
+            _resizing = resizable &&
+                d.localPosition.dx > bw - handle &&
+                d.localPosition.dy > bh - handle;
+            _startX = e.x;
+            _startY = e.y;
+            _startW = e.w;
+            _startH = e.h;
+            setState(() => _sel = e);
+          },
+          onPanUpdate: (DragUpdateDetails d) {
+            _accX += d.delta.dx;
+            _accY += d.delta.dy;
+            setState(() {
+              if (_resizing) {
+                e.w = _snap(_startW + (_accX / scale).round()).clamp(1, 1 << 20);
+                e.h = _snap(_startH + (_accY / scale).round()).clamp(1, 1 << 20);
+              } else {
+                e.x = _snap(_startX + (_accX / scale).round());
+                e.y = _snap(_startY + (_accY / scale).round());
+              }
+            });
+          },
+          onPanEnd: (_) => widget.onCommit(),
+          child: Stack(
+            children: <Widget>[
+              Positioned.fill(
                 child: Container(
-                  width: handle,
-                  height: handle,
-                  color: Colors.white,
-                  child: const Icon(Icons.open_in_full, size: 10, color: Colors.black),
+                  decoration: BoxDecoration(
+                    border: Border.all(
+                        color: selected
+                            ? Colors.white
+                            : (art != null ? Colors.white24 : col.withOpacity(0.9)),
+                        width: selected ? 2 : 1),
+                    color: art != null ? null : col.withOpacity(selected ? 0.22 : 0.12),
+                  ),
+                  child: art,
                 ),
               ),
-          ],
+              // Always-visible widget label (readable over art or colour).
+              Positioned(
+                left: 0,
+                top: 0,
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(maxWidth: bw),
+                  child: Container(
+                    color: Colors.black.withOpacity(0.55),
+                    padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
+                    child: Text(e.name,
+                        style: const TextStyle(fontSize: 8, color: Colors.white),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis),
+                  ),
+                ),
+              ),
+              if (selected && resizable)
+                Positioned(
+                  right: 0,
+                  bottom: 0,
+                  child: Container(
+                    width: handle,
+                    height: handle,
+                    color: Colors.white,
+                    child: const Icon(Icons.open_in_full, size: 10, color: Colors.black),
+                  ),
+                ),
+            ],
+          ),
         ),
       ),
     );
+  }
+
+  /// Snap a theme-pixel value to the canvas grid (no-op when the grid is off).
+  int _snap(int v) {
+    final int g = widget.gridSize;
+    if (g <= 0) return v;
+    return (v / g).round() * g;
   }
 
   Color _hueFor(String name) {
     final int h = name.hashCode % 360;
     return HSVColor.fromAHSV(1, (h < 0 ? h + 360 : h).toDouble(), 0.55, 0.95).toColor();
   }
+}
+
+/// Faint grid overlay for the Arrange canvas (lines every [step] display px).
+class _GridPainter extends CustomPainter {
+  _GridPainter(this.step);
+
+  final double step;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (step < 3) return; // too dense to be useful
+    final Paint p = Paint()
+      ..color = Colors.white.withOpacity(0.10)
+      ..strokeWidth = 1;
+    for (double x = step; x < size.width; x += step) {
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), p);
+    }
+    for (double y = step; y < size.height; y += step) {
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), p);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_GridPainter old) => old.step != step;
 }
 
 /// A read-only **approximate-real-client** render: the theme's images drawn at
@@ -1416,6 +1657,15 @@ ThemeImage? _themeImageForBase(Ao2Theme theme, String base) {
   return null;
 }
 
+/// Friendly "what this widget does" description (from the widget catalogue), for
+/// the Arrange-canvas box tooltips. Null for unknown/custom names.
+String? _widgetHint(String name) {
+  for (final ThemeWidgetDef w in kCourtroomWidgets) {
+    if (w.name == name) return w.hint;
+  }
+  return null;
+}
+
 /// Common theme sizes (incl. 1080p/720p and the AOHD family).
 const List<({String label, int w, int h})> _sizePresets =
     <({String label, int w, int h})>[
@@ -1465,3 +1715,51 @@ const Map<String, String> _widgetSampleText = <String, String>{
   'ms_chatlog': '[Server] Welcome to the courtroom.',
   'server_chatlog': '[Server] Welcome to the courtroom.',
 };
+
+/// Captures the next key press (for rebinding the nudge keys). Cancels on
+/// **Escape** and ignores bare modifier keys (Shift/Ctrl/Alt/Meta) so a
+/// direction can't be bound to a modifier that already means something.
+class _KeyCaptureDialog extends StatelessWidget {
+  const _KeyCaptureDialog();
+
+  static const Set<LogicalKeyboardKey> _modifiers = <LogicalKeyboardKey>{
+    LogicalKeyboardKey.shiftLeft,
+    LogicalKeyboardKey.shiftRight,
+    LogicalKeyboardKey.controlLeft,
+    LogicalKeyboardKey.controlRight,
+    LogicalKeyboardKey.altLeft,
+    LogicalKeyboardKey.altRight,
+    LogicalKeyboardKey.metaLeft,
+    LogicalKeyboardKey.metaRight,
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Press a key'),
+      content: Focus(
+        autofocus: true,
+        onKeyEvent: (FocusNode node, KeyEvent event) {
+          if (event is! KeyDownEvent) return KeyEventResult.ignored;
+          if (event.logicalKey == LogicalKeyboardKey.escape) {
+            Navigator.pop(context);
+            return KeyEventResult.handled;
+          }
+          if (_modifiers.contains(event.logicalKey)) {
+            return KeyEventResult.ignored;
+          }
+          Navigator.pop(context, event.logicalKey);
+          return KeyEventResult.handled;
+        },
+        child: const SizedBox(
+          height: 44,
+          child: Center(child: Text('Press any key…  (Esc to cancel)')),
+        ),
+      ),
+      actions: <Widget>[
+        TextButton(
+            onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+      ],
+    );
+  }
+}

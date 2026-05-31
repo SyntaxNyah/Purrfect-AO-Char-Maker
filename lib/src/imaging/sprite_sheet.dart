@@ -11,6 +11,9 @@ enum SheetMode {
 
   /// Slice on a uniform rows×columns grid.
   grid,
+
+  /// Hand-drawn boxes: you draw/move/resize each sprite box yourself.
+  manual,
 }
 
 /// One sliced region of a sprite sheet — a future sprite.
