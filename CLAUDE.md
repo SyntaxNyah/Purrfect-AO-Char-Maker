@@ -65,8 +65,9 @@ lib/src/
                validator, history)
   discovery/   folder → character (scanner, builder, organizer, bulk rename)
   imaging/     codecs, colour ops, region edit, sprite edit (crop/trim/bg),
-               compositor, buttons, bulk, webp
+               compositor, buttons, bulk, webp, **sprite sheet ripper**
   animation/   clip, easing, recipe engine, keyframe timeline, lipsync
+  theme/       **AO2 client theme model + defaults catalogue + randomizer**
   presets/     built-in preset library
   plugins/     JSON pack model + extension registry
   platform/    Workspace + folder picker + save/webp seams (conditional imports)
@@ -228,6 +229,18 @@ The central model.
   {rect})` (preview: removeBg → crop). Geometry is uniform across frames and
   across an emote's (a)/(b)/(c) so animations/idle-talk stay aligned.
 
+### imaging/sprite_sheet.dart  ← rip a sheet into sprites
+- `enum SheetMode { auto, grid }`; `class SheetCell(rect,{enabled,name})`.
+- `class GridSpec({cols,rows,offsetX,offsetY,gutterX,gutterY,cellW,cellH})` (0
+  cell size = derive to fill); `class AutoSpec({bgColor,tolerance,minSide,gap,
+  padding,trim})` — `.copyWith`.
+- `class SpriteSheet` — `grid(w,h,spec)`→`List<IntRect>`,
+  `autoDetect(image,spec)`→`List<IntRect>` (**border-background flood-fill** so
+  interior same-as-bg regions stay; 8-connected component labelling; merge boxes
+  within `gap`; drop specks; trim; row-major), `extract(image,rect,{removeBg,
+  bgColor,tolerance})` (crop + knock surrounding bg transparent). Drives the
+  Ripper screen; export via `AppState.exportSheetCells`. See docs/SPRITE_RIPPER.md.
+
 ### imaging/compositor.dart  ← snip + combine sprites
 - `class Layer(image,{x,y,scale,angle,opacity,visible,name})`.
 - `class CutResult(image,offsetX,offsetY)`.
@@ -341,6 +354,31 @@ The central model.
   `.fromVisemes(list,{perFrameCentis,pingPong})`,
   `.auto(base,{mouth,openAmount,frames,fps})` (procedural jaw-drop).
 
+### theme/ao2_theme.dart  ← AO2 client theme model
+- The real AO2 theme format (Qt `QSettings` flat INIs): design = `name = x,y,w,h`,
+  colours = `name = r,g,b`, fonts = `name = size` + `name_font/_color/_bold/_sharp`.
+- `class ThemeElement(name,x,y,w,h)`, `ThemeColor(name,r,g,b)` (`.argb`),
+  `ThemeFont(name,{size,font,r,g,b,bold,sharp,extras})` (`.serialize()`),
+  `ThemeSound(name,path)`, `ThemeImage(fileName,{bytes,ext})`.
+- `class ThemeDesign` — ordered `elements`/`colors`/`scalars`; `upsertElement`,
+  `upsertColor`, `setScalar`, `serialize(title)`, `static parse(text)`.
+- `class Ao2Theme(name)` — `courtroom`/`lobby` (ThemeDesign), `fonts`/`lobbyFonts`,
+  `sounds`, `courtroomCss`/`lobbyCss`, `images`, **`otherFiles`** (lossless
+  passthrough). `width`/`height` from the `courtroom` element. `buildFiles()`→
+  `relPath→bytes` for export; `static fromFiles(name,files)` parses a folder;
+  `normalizePicked`, `starter()`, `parseFlatIni`, `intList`, `parseFonts`,
+  `parseSounds`. **Lossless round-trip** (text is latin1 passthrough).
+
+### theme/ao2_theme_defaults.dart
+- Catalogues for the Theme Maker pickers: `kCourtroomWidgets`
+  (`ThemeWidgetDef`, ~95 widgets w/ category+hint+default size), `kThemeColorKeys`,
+  `kFontWidgets`, `kThemeScalars`, `kThemeImageSlots` (getter; generates the
+  penalty-bar series), `kThemeImageCategories`. Append here to extend the pickers.
+
+### theme/theme_randomizer.dart
+- `ThemeRandomizer.randomize(theme,{seed,colors,fonts,jitterPositions})`→seed.
+  Cohesive HSV palette (triadic accents), readable font colours; reproducible.
+
 ### presets/presets.dart
 - `NamedPalette`, `NamedGradient`, `AnimPreset`, `EmoteNameSet`.
 - `class PresetLibrary` — `colorPresets`, `palettes`, `gradients`, `animPresets`,
@@ -373,8 +411,11 @@ The central model.
   **crop/trim/bg via previewEdit/applyEdit**, animation render/save (WebP
   default) + **bulkAnimateAll** (one effect stack baked onto every sprite, each
   saved as animated WebP; renders+encodes **off the UI isolate via `compute`** so
-  it stays responsive, **lossless** — bulk must not degrade quality), mixer save,
-  export zip/ini. Read it before adding a screen.
+  it stays responsive, **lossless** — bulk must not degrade quality),
+  **sprite-sheet ripping** (`loadSheet`/`exportSheetCells`), **AO2 theme** state +
+  export (`theme`, `importThemeFiles`, `newTheme`, `randomizeTheme`,
+  `setThemeImage`, `touchTheme`, `exportTheme`), mixer save, export zip/ini. Read
+  it before adding a screen.
   - **Recolour/edit write back in place** via `_writeSpriteInPlace(rel,image)`:
     re-encodes in the file's own format (WebP via the encoder, APNG/PNG/GIF
     otherwise) and only changes the path/extension on a fallback. `applyPipeline`
@@ -404,7 +445,8 @@ The central model.
     The Emotes screen watches `spriteRevision` (not every notify) so typing a field
     never re-bakes the preview.
 - `screens/` — home, **ini_builder** (the `[Options]`/char.ini editor), editor,
-  color_lab, animation_studio, button_studio, edit, mixer, bulk, plugins.
+  color_lab, animation_studio, button_studio, edit, mixer, bulk, plugins,
+  **sprite_ripper** (sheet → sprites), **theme_maker** (AO2 theme editor).
   `widgets/` — `CheckerImage`, `ZoomCanvas`, `overlay_builder` (the
   `showOverlayBuilder` dialog — style/colour-wheel/sliders for custom overlays).
   `credits.dart` — the About dialog + Home credits card (maintainer/repo, in
@@ -447,13 +489,27 @@ The central model.
     → `mixSources`). Each snip's cut piece is baked **once** (debounced) into a
     cached image and moved/scaled/rotated as a live Flutter transform; only Save
     composites full-res (`placeCentered` per snip / `flatten` for layers).
+  - `sprite_ripper`: load a sheet → **Auto detect** (sliders: tolerance/min
+    size/gap/padding/trim) or **Grid** (cols/rows/offset/gutter/cell). Overlay
+    boxes are **tap-to-toggle**; export adds to the character (`addSprites`) or a
+    zip. Sheet persists on `AppState.ripperSheetBytes`. See docs/SPRITE_RIPPER.md.
+  - `theme_maker`: six tabs — **Layout** (X/Y/W/H rows + add from ~95 known
+    widgets, Courtroom/Lobby toggle, filter), **Colours** (swatch → hue-wheel),
+    **Fonts** (size/family/colour/bold/sharp), **Images** (replace any asset with
+    PNG/GIF/WebP, grouped slots), **Style** (Qt CSS + sounds + design-option
+    scalars), **Arrange** (the draggable `_LayoutCanvas`: drag to move, corner to
+    resize). Import a real theme / New / Random / Export .zip in the header. Edits
+    commit on blur; `_rev` keys refresh fields after import/randomise. See
+    docs/THEME_MAKER.md.
 - `app.dart` (`HomeShell`) hosts a global `CallbackShortcuts` map (undo/redo,
   import/export, add emote, prev/next emote, `Ctrl/⌘+1..9` screen jumps, F1 help)
   and a `_TopBar` with undo/redo + import/export + **About/credits** (ℹ) buttons
   (gated on `AppState.canUndo`/`canRedo`/`hasProject` via a `Selector`). The nav
-  now has a **Character** destination at index 1 (the ini builder); the no-project
-  guard uses the `_pluginsIndex` constant instead of a hard-coded index, so adding
-  destinations won't silently break it. Document new keys in `docs/SHORTCUTS.md`.
+  now has a **Character** destination at index 1 (the ini builder), plus
+  **Ripper** and **Theme** at the end (both project-independent). The no-project
+  guard uses the `_projectFreeIndices` set (`{Home, Plugins, Ripper, Theme}`)
+  instead of a hard-coded index, so adding destinations won't silently break it.
+  Document new keys in `docs/SHORTCUTS.md`.
 
 ---
 
@@ -476,8 +532,9 @@ the `_registry` map, document it in `docs/COLOR_OPS.md`, optionally add a preset
 Plugins screen or `ExtensionRegistry.instance.installPackJson`.
 
 **A screen:** create `ui/screens/foo_screen.dart`, add it to `_dests` and the
-`screens` list in `lib/src/app.dart`, and (if it needs a loaded project) to the
-`needsProject` index guard. Talk to the engine through `AppState`.
+`_screenFor` switch in `lib/src/app.dart`, and — if it works **without** a loaded
+project — add its index to the `_projectFreeIndices` set (otherwise it's gated by
+the no-project guard automatically). Talk to the engine through `AppState`.
 
 **A new char.ini field:** add the constant/section to `ao_constants.dart`, model
 it in `Character`/`Emote`, parse in `fromIni`, write in `toIni`, and add a

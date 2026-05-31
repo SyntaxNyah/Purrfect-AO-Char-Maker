@@ -15,6 +15,8 @@ import 'ui/screens/home_screen.dart';
 import 'ui/screens/ini_builder_screen.dart';
 import 'ui/screens/mixer_screen.dart';
 import 'ui/screens/plugins_screen.dart';
+import 'ui/screens/sprite_ripper_screen.dart';
+import 'ui/screens/theme_maker_screen.dart';
 import 'ui/theme.dart';
 
 class PinselApp extends StatelessWidget {
@@ -43,12 +45,17 @@ const List<({IconData icon, String label})> _dests =
   (icon: Icons.auto_fix_high_rounded, label: 'Mixer'),
   (icon: Icons.dynamic_feed_rounded, label: 'Bulk'),
   (icon: Icons.extension_rounded, label: 'Plugins'),
+  (icon: Icons.grid_on_rounded, label: 'Ripper'),
+  (icon: Icons.brush_rounded, label: 'Theme'),
 ];
 
-/// Index of the Plugins screen (the only project-independent screen besides
-/// Home), kept as a named constant so the no-project guard doesn't go stale when
-/// destinations are reordered.
+/// Screens that work without a loaded character: Home, Plugins, the Sprite
+/// Sheet Ripper and the AO2 Theme Maker. Kept as named constants + a set so the
+/// no-project guard doesn't go stale when destinations are reordered.
 const int _pluginsIndex = 9;
+const int _ripperIndex = 10;
+const int _themeIndex = 11;
+const Set<int> _projectFreeIndices = <int>{0, _pluginsIndex, _ripperIndex, _themeIndex};
 
 /// Persistent navigation rail + status bar around the active screen.
 ///
@@ -85,6 +92,10 @@ class _HomeShellState extends State<HomeShell> {
         return const BulkScreen();
       case 9:
         return const PluginsScreen();
+      case 10:
+        return const SpriteRipperScreen();
+      case 11:
+        return const ThemeMakerScreen();
       case 0:
       default:
         return const HomeScreen();
@@ -121,9 +132,8 @@ class _HomeShellState extends State<HomeShell> {
                       child: Selector<AppState, bool>(
                         selector: (_, AppState a) => a.hasProject,
                         builder: (BuildContext context, bool hasProject, _) {
-                          final bool needsProject = _index != 0 &&
-                              _index != _pluginsIndex &&
-                              !hasProject;
+                          final bool needsProject =
+                              !_projectFreeIndices.contains(_index) && !hasProject;
                           if (needsProject) {
                             return _NoProject(
                                 onGoHome: () => setState(() => _index = 0));

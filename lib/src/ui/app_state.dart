@@ -22,9 +22,12 @@ import '../imaging/codecs.dart';
 import '../imaging/color_ops.dart';
 import '../imaging/overlay_presets.dart';
 import '../imaging/sprite_edit.dart';
+import '../imaging/sprite_sheet.dart';
 import '../imaging/webp_codec.dart';
 import '../platform/save_file.dart';
 import '../platform/workspace.dart';
+import '../theme/ao2_theme.dart';
+import '../theme/theme_randomizer.dart';
 
 /// A file handed to the app by a picker (name + bytes), platform-neutral.
 class PickedFile {
@@ -1136,6 +1139,156 @@ class AppState extends ChangeNotifier {
     _setBusy(false,
         'Saved $outRel — ${ordered.length} frames as ${_animNote(ext, webpError)}.');
     return saveBytes('$prefix$safe.$ext', bytes);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Sprite-sheet ripper — slice a sheet of VN sprites into individual sprites
+  // ---------------------------------------------------------------------------
+
+  /// The loaded sprite sheet (raw bytes), kept on the hub so the Ripper screen
+  /// survives navigation. The screen decodes it for preview/detection.
+  Uint8List? ripperSheetBytes;
+  String ripperSheetName = 'sheet';
+
+  /// Load a sprite sheet for ripping.
+  void loadSheet(Uint8List bytes, String name) {
+    ripperSheetBytes = bytes;
+    final int dot = name.lastIndexOf('.');
+    ripperSheetName = dot > 0 ? name.substring(0, dot) : name;
+    status = 'Loaded sheet "$name".';
+    notifyListeners();
+  }
+
+  /// Export the enabled [cells] of [sheet] as individual sprite PNGs. When
+  /// [toProject] they're added to the current character (or build a new one via
+  /// [addSprites]); otherwise they're zipped and downloaded. Background removal
+  /// runs per cell. Returns how many sprites were written.
+  Future<int> exportSheetCells(
+    img.Image sheet,
+    List<SheetCell> cells, {
+    required bool toProject,
+    bool removeBg = true,
+    int? bgColor,
+    int tolerance = 24,
+    String namePrefix = 'sprite',
+  }) async {
+    final List<SheetCell> enabled =
+        cells.where((SheetCell c) => c.enabled).toList();
+    if (enabled.isEmpty) return 0;
+    _setBusy(true, 'Ripping ${enabled.length} sprite(s)…');
+    final List<PickedFile> out = <PickedFile>[];
+    final Set<String> used = <String>{};
+    for (int i = 0; i < enabled.length; i++) {
+      final SheetCell c = enabled[i];
+      final img.Image piece = SpriteSheet.extract(sheet, c.rect,
+          removeBg: removeBg, bgColor: bgColor, tolerance: tolerance);
+      final Uint8List png = Codecs.encodePng(piece);
+      String base = c.name.trim().isEmpty ? '$namePrefix${i + 1}' : c.name.trim();
+      base = base.replaceAll(RegExp(r'[\\/:*?"<>|]+'), '_');
+      String unique = base;
+      int n = 2;
+      while (used.contains(unique.toLowerCase())) {
+        unique = '${base}_${n++}';
+      }
+      used.add(unique.toLowerCase());
+      out.add(PickedFile('$unique.png', png));
+      _progress(i + 1, enabled.length, 'Rip');
+      if (i % 3 == 0) await Future<void>.delayed(Duration.zero);
+    }
+
+    if (toProject) {
+      await addSprites(out);
+      _setBusy(false, 'Ripped ${out.length} sprite(s) into the project.');
+    } else {
+      final Archive archive = Archive();
+      for (final PickedFile f in out) {
+        archive.addFile(ArchiveFile(f.name, f.bytes.length, f.bytes));
+      }
+      final List<int>? zip = ZipEncoder().encode(archive);
+      _setBusy(false, 'Ripped ${out.length} sprite(s).');
+      if (zip != null) {
+        await saveBytes('${ripperSheetName}_sprites.zip', Uint8List.fromList(zip));
+      }
+    }
+    return out.length;
+  }
+
+  // ---------------------------------------------------------------------------
+  // AO2 theme maker — design a full AO2/webAO client theme
+  // ---------------------------------------------------------------------------
+
+  /// The working AO2 theme (held on the hub so the Theme Maker screen survives
+  /// navigation). Null until you start or import one.
+  Ao2Theme? theme;
+
+  bool get hasTheme => theme != null;
+
+  /// Start a fresh theme from the built-in starter layout.
+  void newTheme() {
+    theme = Ao2Theme.starter();
+    status = 'Started a new theme.';
+    notifyListeners();
+  }
+
+  /// Import an AO2 theme folder (its `relPath -> bytes`). Modeled inis/css become
+  /// editable; images and everything else are preserved for lossless export.
+  Future<void> importThemeFiles(Map<String, Uint8List> picked) async {
+    if (picked.isEmpty) return;
+    _setBusy(true, 'Importing theme…');
+    final (String name, Map<String, Uint8List> files) =
+        Ao2Theme.normalizePicked(picked);
+    theme = Ao2Theme.fromFiles(name, files);
+    _setBusy(
+        false,
+        'Imported theme "$name" — ${theme!.courtroom.elements.length} elements, '
+        '${theme!.fonts.length} fonts, ${theme!.images.length} images.');
+  }
+
+  /// Randomise the current theme's colours/fonts. Returns the seed used.
+  int randomizeTheme({
+    bool colors = true,
+    bool fonts = true,
+    bool jitter = false,
+    int? seed,
+  }) {
+    if (theme == null) return 0;
+    final int s = ThemeRandomizer.randomize(theme!,
+        colors: colors, fonts: fonts, jitterPositions: jitter, seed: seed);
+    status = 'Randomised theme (seed $s).';
+    notifyListeners();
+    return s;
+  }
+
+  /// Replace (or clear, with null [bytes]) a theme image asset by file name.
+  void setThemeImage(String fileName, Uint8List? bytes, {String ext = 'png'}) {
+    if (theme == null) return;
+    if (bytes == null) {
+      theme!.images.remove(fileName);
+    } else {
+      theme!.images[fileName] = ThemeImage(fileName, bytes: bytes, ext: ext);
+    }
+    notifyListeners();
+  }
+
+  /// Notify after the Theme Maker mutates the model directly (lag-free editing).
+  void touchTheme() => notifyListeners();
+
+  /// Build the theme into a `<name>/…` `.zip` ready to drop into AO2's
+  /// `base/themes/`. Returns the saved path.
+  Future<String?> exportTheme() async {
+    if (theme == null) return null;
+    _setBusy(true, 'Building theme…');
+    final Map<String, Uint8List> files = theme!.buildFiles();
+    final String folder =
+        theme!.name.trim().isEmpty ? 'theme' : theme!.name.trim();
+    final Archive archive = Archive();
+    files.forEach((String rel, Uint8List bytes) {
+      archive.addFile(ArchiveFile('$folder/$rel', bytes.length, bytes));
+    });
+    final List<int>? zip = ZipEncoder().encode(archive);
+    _setBusy(false, 'Theme "$folder" built (${files.length} files).');
+    if (zip == null) return null;
+    return saveBytes('$folder.zip', Uint8List.fromList(zip));
   }
 
   // ---------------------------------------------------------------------------

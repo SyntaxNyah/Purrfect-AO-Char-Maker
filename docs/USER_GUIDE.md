@@ -70,12 +70,14 @@ On the left is a **navigation rail** with these tabs:
 | ✦ **Mixer** | Snip / stack parts of sprites together (mouse-driven) |
 | ⧉ **Bulk** | Recolour / convert / **rename** *all* sprites at once |
 | 🧩 **Plugins** | Add preset/animation packs |
+| ▩ **Ripper** | Slice a **sprite sheet** into individual sprites ([guide](SPRITE_RIPPER.md)) |
+| 🖌️ **Theme** | Design a full **AO2 client theme** ([guide](THEME_MAKER.md)) |
 
 At the very bottom is a **status bar** showing the latest action and your emote
 count. A spinner there means it's working.
 
-> Tabs other than **Home** and **Plugins** say *"No project yet"* until you
-> import sprites.
+> Tabs other than **Home**, **Plugins**, **Ripper** and **Theme** say *"No
+> project yet"* until you import sprites — those four work on their own.
 
 ---
 
@@ -437,6 +439,40 @@ emote-name sets. They need no install and work on the website too.
 - Installed packs are listed with a **trash** icon to remove them.
 - A sample pack ships at `assets/presets/example_pack.json` — copy it, edit it,
   re-import. The format is documented in [PLUGINS.md](PLUGINS.md).
+
+---
+
+## 12a. Ripper — slice a sprite sheet
+
+Got a **sprite sheet** (a grid or collage of expressions in one image)? The
+**Ripper** tab cuts it into individual transparent sprites.
+
+1. **Load sheet** and pick the image.
+2. **Auto detect** (any layout — it flood-fills the background from the edges, so
+   white-on-white works) or **Grid** (set columns/rows/offset/gutter). Tune the
+   sliders until each sprite has its own box.
+3. **Tap boxes** to include/exclude; **All / None** to bulk-toggle.
+4. Keep **Remove background** on for transparent sprites.
+5. **Add to character** (becomes new emotes) or **Download as .zip**.
+
+Full details: **[SPRITE_RIPPER.md](SPRITE_RIPPER.md)**.
+
+---
+
+## 12b. Theme — design an AO2 client theme
+
+The **Theme** tab is a complete **Attorney Online 2 / webAO** theme editor.
+
+- **Import theme folder** to edit a real theme, **New** for a blank one, or
+  **Random** for a fresh palette.
+- Tabs: **Layout** (every widget's X/Y/W/H + add any of ~95 known widgets),
+  **Colours**, **Fonts**, **Images** (replace any asset with your own PNG/GIF/
+  WebP), **Style** (Qt CSS, sounds, design options), and **Arrange** — a live
+  courtroom where you **drag widgets around and resize them with the mouse**.
+- **Export .zip** gives you a folder ready to drop into the client's
+  `base/themes/`.
+
+Full details: **[THEME_MAKER.md](THEME_MAKER.md)**.
 
 ---
 

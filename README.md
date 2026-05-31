@@ -97,6 +97,21 @@ Runs natively on **Windows, Linux, macOS, Android, iOS**, and as a **website**
   and the status line tells you *why* it fell back, so a stray APNG is fixable
   rather than a mystery.
 
+### Rip & theme everything
+- **Sprite sheet ripper** — drop in a sheet/collage of VN sprites and it slices
+  out each one as a transparent sprite. **Auto-detect** any layout (it flood-fills
+  the background inward from the edges, so even white-clothing-on-white works) or
+  a **uniform grid**. Tap boxes to include/exclude, then **add them straight to
+  your character** or download a zip. See
+  [docs/SPRITE_RIPPER.md](docs/SPRITE_RIPPER.md).
+- **AO2 Theme Maker** — design a full **Attorney Online 2 / webAO** client theme:
+  every widget position (**drag them around the courtroom**), every colour, every
+  font, every image (PNG/GIF/WebP), sounds and Qt CSS. **Import a real theme** to
+  edit, **roll a random** one, then **export a `.zip`** ready for `base/themes/`.
+  ~95 known widgets, a full image catalogue and every design option — all
+  customizable, with lossless round-trips. See
+  [docs/THEME_MAKER.md](docs/THEME_MAKER.md).
+
 ### Extend everything
 - **Plugin packs** — plain JSON adding presets, palettes, gradients, animations
   and name sets. No install, no recompile, and they work on the **web** too.
@@ -177,6 +192,8 @@ platform via [`.github/workflows/build.yml`](.github/workflows/build.yml).
 | [docs/COLOR_OPS.md](docs/COLOR_OPS.md) | Every colour operation + parameters |
 | [docs/ANIMATION.md](docs/ANIMATION.md) | Recipes, easing, timeline, lip-sync, regions |
 | [docs/MIXER.md](docs/MIXER.md) | Snip, stack & link sprites (mouse-driven; multi-snip + layers) |
+| [docs/SPRITE_RIPPER.md](docs/SPRITE_RIPPER.md) | Slice sprite sheets into sprites (auto-detect / grid) |
+| [docs/THEME_MAKER.md](docs/THEME_MAKER.md) | Design & export an AO2 client theme (drag layout, random, custom images) |
 | [docs/SHORTCUTS.md](docs/SHORTCUTS.md) | Keyboard shortcuts + the top toolbar |
 | [docs/PLUGINS.md](docs/PLUGINS.md) | Pack JSON schema + native plugins + libwebp |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | How the code is organised |

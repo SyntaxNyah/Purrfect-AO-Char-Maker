@@ -45,6 +45,12 @@ Legend: ✅ done · 🟡 partial · ⬜ planned
 - ✅ Update an existing character — **Add sprites / Add sprite folder**
   (`addSprites`) appends an emote per *new* sprite group without touching the
   existing ini, emotes or edits
+- ✅ **Sprite sheet ripper** (`imaging/sprite_sheet.dart`) — auto-detect
+  (border-background flood + connected components) or uniform grid, tap-to-toggle
+  cells, background removal, add-to-character or zip
+- ✅ **AO2 Theme Maker** (`theme/`) — full client theme editor: drag widgets in a
+  live courtroom, edit every position/colour/font/image/sound/CSS/scalar, import a
+  real theme, random palette generator, lossless `.zip` export for `base/themes/`
 - ✅ `scripts/build_all.ps1` bundles the libwebp DLLs into local Windows builds
   too (best-effort via vcpkg), so a locally-built app gets working animated WebP
 - ⬜ GPU fragment-shader real-time path (CPU preview works now)

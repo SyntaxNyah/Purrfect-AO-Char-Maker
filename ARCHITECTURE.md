@@ -38,6 +38,7 @@ lib/
                                 (OverlaySpec/OverlayStyle; procedural presets:
                                 Umineko/Danganronpa/Limbus/Kawaii/Colours…)
       bulk_processor.dart       apply pipeline / convert across many files
+      sprite_sheet.dart         rip a sheet into sprites (bg flood + components / grid)
       webp_codec.dart           WebP encode interface (lossy + lossless, animated)
       webp_codec_io.dart          native: libwebp + libwebpmux via dart:ffi
       webp_codec_web.dart         web: browser canvas encoder
@@ -48,6 +49,11 @@ lib/
       anim_engine.dart          stackable recipes + region layers + render
       timeline.dart             manual keyframe interpolation
       lipsync.dart              talking-sprite generation
+
+    theme/                      ── AO2 client theme maker ──
+      ao2_theme.dart            theme model + parse/serialise (lossless) + export
+      ao2_theme_defaults.dart   widget/colour/font/scalar/image catalogues
+      theme_randomizer.dart     cohesive random palette generator
 
     presets/
       presets.dart              hundreds of generated + curated presets
@@ -72,7 +78,9 @@ lib/
                                 (custom border/background editor + colour wheel)
       screens/                  home, ini_builder (char.ini Options editor),
                                 editor, color_lab, animation_studio,
-                                button_studio, edit, mixer, bulk, plugins
+                                button_studio, edit, mixer, bulk, plugins,
+                                sprite_ripper (sheet → sprites),
+                                theme_maker (AO2 theme editor, draggable layout)
     app.dart                    HomeShell: nav rail + global keyboard shortcuts
                                 (CallbackShortcuts) + undo/redo + About toolbar + status
 ```

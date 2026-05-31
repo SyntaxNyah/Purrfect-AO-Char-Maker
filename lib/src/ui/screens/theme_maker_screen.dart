@@ -1,0 +1,1148 @@
+import 'dart:typed_data';
+
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_colorpicker/flutter_colorpicker.dart';
+import 'package:provider/provider.dart';
+
+import '../../platform/folder_picker.dart';
+import '../../theme/ao2_theme.dart';
+import '../../theme/ao2_theme_defaults.dart';
+import '../app_state.dart';
+
+/// **AO2 Theme Maker** — design a complete Attorney Online 2 / webAO client
+/// theme: every widget position/size, every colour, every font, every image
+/// (PNG/GIF/WebP), sounds and Qt stylesheets — then export a `.zip` ready to
+/// drop into AO2's `base/themes/`. Import a real theme as a starting point,
+/// or roll a random one.
+class ThemeMakerScreen extends StatefulWidget {
+  const ThemeMakerScreen({super.key});
+
+  @override
+  State<ThemeMakerScreen> createState() => _ThemeMakerScreenState();
+}
+
+class _ThemeMakerScreenState extends State<ThemeMakerScreen> {
+  /// Bumped on import/new/randomise so field widgets pick up fresh values.
+  int _rev = 0;
+  bool _editLobby = false;
+  String _filter = '';
+
+  void _bump() => setState(() => _rev++);
+
+  Future<void> _import() async {
+    final List<PickedFolderFile>? files = await pickFolderFiles();
+    if (files == null || files.isEmpty || !mounted) return;
+    await context.read<AppState>().importThemeFiles(<String, Uint8List>{
+      for (final PickedFolderFile f in files) f.name: f.bytes,
+    });
+    if (mounted) _bump();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final AppState app = context.watch<AppState>();
+    final Ao2Theme? theme = app.theme;
+    if (theme == null) return _empty(app);
+
+    return DefaultTabController(
+      length: 6,
+      child: Column(
+        children: <Widget>[
+          _header(app, theme),
+          const TabBar(
+            isScrollable: true,
+            tabAlignment: TabAlignment.start,
+            tabs: <Widget>[
+              Tab(text: 'Layout'),
+              Tab(text: 'Colours'),
+              Tab(text: 'Fonts'),
+              Tab(text: 'Images'),
+              Tab(text: 'Style'),
+              Tab(text: 'Arrange'),
+            ],
+          ),
+          Expanded(
+            child: TabBarView(
+              children: <Widget>[
+                _layoutTab(app, theme),
+                _coloursTab(app, theme),
+                _fontsTab(app, theme),
+                _imagesTab(app, theme),
+                _styleTab(app, theme),
+                _previewTab(app, theme),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // Header + empty state
+  // ---------------------------------------------------------------------------
+
+  Widget _empty(AppState app) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          const Icon(Icons.brush_rounded, size: 48, color: Colors.white24),
+          const SizedBox(height: 12),
+          const Text('Design an Attorney Online 2 theme.',
+              style: TextStyle(fontSize: 18)),
+          const SizedBox(height: 4),
+          const Text('Import an existing theme to edit, or start a fresh one.',
+              style: TextStyle(color: Colors.white60)),
+          const SizedBox(height: 16),
+          Wrap(spacing: 12, children: <Widget>[
+            FilledButton.icon(
+              onPressed: _import,
+              icon: const Icon(Icons.folder_open_rounded),
+              label: const Text('Import theme folder'),
+            ),
+            FilledButton.tonalIcon(
+              onPressed: () {
+                app.newTheme();
+                _bump();
+              },
+              icon: const Icon(Icons.add_rounded),
+              label: const Text('New theme'),
+            ),
+          ]),
+        ],
+      ),
+    );
+  }
+
+  Widget _header(AppState app, Ao2Theme theme) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
+      child: Row(
+        children: <Widget>[
+          SizedBox(
+            width: 220,
+            child: TextFormField(
+              key: ValueKey<String>('themeName$_rev'),
+              initialValue: theme.name,
+              decoration: const InputDecoration(
+                  labelText: 'Theme name', isDense: true),
+              onFieldSubmitted: (String s) {
+                theme.name = s.trim().isEmpty ? 'theme' : s.trim();
+                app.touchTheme();
+              },
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text('${theme.width}×${theme.height}',
+              style: const TextStyle(color: Colors.white54, fontSize: 12)),
+          const Spacer(),
+          OutlinedButton.icon(
+            onPressed: _import,
+            icon: const Icon(Icons.folder_open_rounded, size: 18),
+            label: const Text('Import'),
+          ),
+          const SizedBox(width: 6),
+          OutlinedButton.icon(
+            onPressed: () => _randomDialog(app),
+            icon: const Icon(Icons.casino_rounded, size: 18),
+            label: const Text('Random'),
+          ),
+          const SizedBox(width: 6),
+          FilledButton.icon(
+            onPressed: () => app.exportTheme(),
+            icon: const Icon(Icons.archive_rounded, size: 18),
+            label: const Text('Export .zip'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _randomDialog(AppState app) async {
+    bool colors = true, fonts = true, jitter = false;
+    final bool? go = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext ctx) => StatefulBuilder(
+        builder: (BuildContext ctx, StateSetter setD) => AlertDialog(
+          title: const Text('Random theme'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              CheckboxListTile(
+                value: colors,
+                title: const Text('Randomise colours'),
+                onChanged: (bool? v) => setD(() => colors = v ?? true),
+              ),
+              CheckboxListTile(
+                value: fonts,
+                title: const Text('Randomise fonts'),
+                onChanged: (bool? v) => setD(() => fonts = v ?? true),
+              ),
+              CheckboxListTile(
+                value: jitter,
+                title: const Text('Nudge positions (±5px)'),
+                onChanged: (bool? v) => setD(() => jitter = v ?? false),
+              ),
+            ],
+          ),
+          actions: <Widget>[
+            TextButton(
+                onPressed: () => Navigator.pop(ctx, false),
+                child: const Text('Cancel')),
+            FilledButton(
+                onPressed: () => Navigator.pop(ctx, true),
+                child: const Text('Roll')),
+          ],
+        ),
+      ),
+    );
+    if (go != true || !mounted) return;
+    app.randomizeTheme(colors: colors, fonts: fonts, jitter: jitter);
+    _bump();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Layout tab
+  // ---------------------------------------------------------------------------
+
+  Widget _layoutTab(AppState app, Ao2Theme theme) {
+    final ThemeDesign d = _editLobby ? theme.lobby : theme.courtroom;
+    final List<ThemeElement> elems = <ThemeElement>[
+      for (final ThemeElement e in d.elements)
+        if (_filter.isEmpty || e.name.toLowerCase().contains(_filter)) e,
+    ];
+    return Column(
+      children: <Widget>[
+        Padding(
+          padding: const EdgeInsets.all(8),
+          child: Row(children: <Widget>[
+            SegmentedButton<bool>(
+              segments: const <ButtonSegment<bool>>[
+                ButtonSegment<bool>(value: false, label: Text('Courtroom')),
+                ButtonSegment<bool>(value: true, label: Text('Lobby')),
+              ],
+              selected: <bool>{_editLobby},
+              onSelectionChanged: (Set<bool> s) => setState(() => _editLobby = s.first),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: TextField(
+                decoration: const InputDecoration(
+                    isDense: true,
+                    prefixIcon: Icon(Icons.search, size: 18),
+                    hintText: 'Filter widgets…'),
+                onChanged: (String s) => setState(() => _filter = s.trim().toLowerCase()),
+              ),
+            ),
+            const SizedBox(width: 8),
+            FilledButton.tonalIcon(
+              onPressed: () => _addElement(app, d),
+              icon: const Icon(Icons.add, size: 18),
+              label: const Text('Add'),
+            ),
+          ]),
+        ),
+        const Divider(height: 1),
+        Expanded(
+          child: ListView.builder(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            itemCount: elems.length,
+            itemBuilder: (BuildContext context, int i) => _elementRow(app, d, elems[i]),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _elementRow(AppState app, ThemeDesign d, ThemeElement e) {
+    Widget numField(String label, int value, ValueChanged<int> set) => SizedBox(
+          width: 60,
+          child: TextFormField(
+            key: ValueKey<String>('${e.name}-$label-$value-$_rev'),
+            initialValue: value.toString(),
+            keyboardType: TextInputType.number,
+            decoration: InputDecoration(labelText: label, isDense: true),
+            onFieldSubmitted: (String s) {
+              final int? v = int.tryParse(s.trim());
+              if (v != null) {
+                set(v);
+                app.touchTheme();
+              }
+            },
+          ),
+        );
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: Row(
+        children: <Widget>[
+          Expanded(
+            child: Text(e.name,
+                style: const TextStyle(fontSize: 13), overflow: TextOverflow.ellipsis),
+          ),
+          const SizedBox(width: 6),
+          numField('X', e.x, (int v) => e.x = v),
+          const SizedBox(width: 4),
+          numField('Y', e.y, (int v) => e.y = v),
+          const SizedBox(width: 4),
+          numField('W', e.w, (int v) => e.w = v),
+          const SizedBox(width: 4),
+          numField('H', e.h, (int v) => e.h = v),
+          IconButton(
+            tooltip: 'Remove',
+            icon: const Icon(Icons.close, size: 16),
+            onPressed: () {
+              d.elements.remove(e);
+              app.touchTheme();
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _addElement(AppState app, ThemeDesign d) async {
+    final String? name =
+        await _pickKnown('Add a widget', <({String name, String hint})>[
+      for (final ThemeWidgetDef w in kCourtroomWidgets)
+        (name: w.name, hint: '${w.category} · ${w.hint}'),
+    ]);
+    if (name == null || name.isEmpty) return;
+    ThemeWidgetDef? def;
+    for (final ThemeWidgetDef w in kCourtroomWidgets) {
+      if (w.name == name) {
+        def = w;
+        break;
+      }
+    }
+    d.upsertElement(name, 20, 20, def?.w ?? 100, def?.h ?? 30);
+    app.touchTheme();
+    _bump();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Colours tab
+  // ---------------------------------------------------------------------------
+
+  Widget _coloursTab(AppState app, Ao2Theme theme) {
+    final List<ThemeColor> all = <ThemeColor>[
+      ...theme.courtroom.colors,
+      ...theme.lobby.colors,
+    ];
+    return Column(
+      children: <Widget>[
+        Padding(
+          padding: const EdgeInsets.all(8),
+          child: Row(children: <Widget>[
+            Expanded(
+              child: Text('${all.length} colours',
+                  style: Theme.of(context).textTheme.titleMedium),
+            ),
+            FilledButton.tonalIcon(
+              onPressed: () => _addColour(app, theme.courtroom),
+              icon: const Icon(Icons.add, size: 18),
+              label: const Text('Add colour'),
+            ),
+          ]),
+        ),
+        const Divider(height: 1),
+        Expanded(
+          child: ListView(
+            padding: const EdgeInsets.all(8),
+            children: <Widget>[
+              for (final ThemeColor c in all) _colourRow(app, theme, c),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _colourRow(AppState app, Ao2Theme theme, ThemeColor c) {
+    return ListTile(
+      dense: true,
+      leading: GestureDetector(
+        onTap: () async {
+          final int? argb = await _pickColour(c.argb);
+          if (argb != null) {
+            c.argb = argb;
+            app.touchTheme();
+          }
+        },
+        child: Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: Color(c.argb),
+            border: Border.all(color: Colors.white24),
+            borderRadius: BorderRadius.circular(6),
+          ),
+        ),
+      ),
+      title: Text(c.name, style: const TextStyle(fontSize: 13)),
+      subtitle: Text('${c.r}, ${c.g}, ${c.b}', style: const TextStyle(fontSize: 11)),
+      trailing: IconButton(
+        icon: const Icon(Icons.close, size: 16),
+        onPressed: () {
+          theme.courtroom.colors.remove(c);
+          theme.lobby.colors.remove(c);
+          app.touchTheme();
+        },
+      ),
+    );
+  }
+
+  Future<void> _addColour(AppState app, ThemeDesign d) async {
+    final String? name =
+        await _pickKnown('Add a colour', <({String name, String hint})>[
+      for (final String k in kThemeColorKeys) (name: k, hint: ''),
+    ]);
+    if (name == null || name.isEmpty) return;
+    d.upsertColor(name, 255, 255, 255);
+    app.touchTheme();
+    _bump();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Fonts tab
+  // ---------------------------------------------------------------------------
+
+  Widget _fontsTab(AppState app, Ao2Theme theme) {
+    return Column(
+      children: <Widget>[
+        Padding(
+          padding: const EdgeInsets.all(8),
+          child: Row(children: <Widget>[
+            Expanded(
+              child: Text('${theme.fonts.length} fonts',
+                  style: Theme.of(context).textTheme.titleMedium),
+            ),
+            FilledButton.tonalIcon(
+              onPressed: () => _addFont(app, theme),
+              icon: const Icon(Icons.add, size: 18),
+              label: const Text('Add font'),
+            ),
+          ]),
+        ),
+        const Divider(height: 1),
+        Expanded(
+          child: ListView(
+            padding: const EdgeInsets.all(8),
+            children: <Widget>[
+              for (final ThemeFont f in theme.fonts) _fontRow(app, theme, f),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _fontRow(AppState app, Ao2Theme theme, ThemeFont f) {
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 3),
+      child: Padding(
+        padding: const EdgeInsets.all(8),
+        child: Row(
+          children: <Widget>[
+            SizedBox(
+              width: 120,
+              child: Text(f.name,
+                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+                  overflow: TextOverflow.ellipsis),
+            ),
+            SizedBox(
+              width: 56,
+              child: TextFormField(
+                key: ValueKey<String>('fs-${f.name}-${f.size}-$_rev'),
+                initialValue: f.size.toString(),
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(labelText: 'Size', isDense: true),
+                onFieldSubmitted: (String s) {
+                  final int? v = int.tryParse(s.trim());
+                  if (v != null) {
+                    f.size = v;
+                    app.touchTheme();
+                  }
+                },
+              ),
+            ),
+            const SizedBox(width: 6),
+            Expanded(
+              child: TextFormField(
+                key: ValueKey<String>('ff-${f.name}-$_rev'),
+                initialValue: f.font,
+                decoration: const InputDecoration(labelText: 'Font family', isDense: true),
+                onFieldSubmitted: (String s) {
+                  f.font = s.trim();
+                  app.touchTheme();
+                },
+              ),
+            ),
+            const SizedBox(width: 6),
+            GestureDetector(
+              onTap: () async {
+                final int? argb = await _pickColour(f.argb);
+                if (argb != null) {
+                  f.argb = argb;
+                  app.touchTheme();
+                }
+              },
+              child: Container(
+                width: 30,
+                height: 30,
+                decoration: BoxDecoration(
+                  color: Color(f.argb),
+                  border: Border.all(color: Colors.white24),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+              ),
+            ),
+            _flag('B', f.bold, (bool v) {
+              f.bold = v;
+              app.touchTheme();
+            }),
+            _flag('Aa', f.sharp, (bool v) {
+              f.sharp = v;
+              app.touchTheme();
+            }, tip: 'Sharp (no anti-alias)'),
+            IconButton(
+              icon: const Icon(Icons.close, size: 16),
+              onPressed: () {
+                theme.fonts.remove(f);
+                app.touchTheme();
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _flag(String label, bool value, ValueChanged<bool> onChanged, {String? tip}) {
+    final Widget chip = Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 2),
+      child: FilterChip(
+        label: Text(label, style: const TextStyle(fontSize: 11)),
+        selected: value,
+        visualDensity: VisualDensity.compact,
+        onSelected: onChanged,
+      ),
+    );
+    return tip == null ? chip : Tooltip(message: tip, child: chip);
+  }
+
+  Future<void> _addFont(AppState app, Ao2Theme theme) async {
+    final String? name =
+        await _pickKnown('Add a font', <({String name, String hint})>[
+      for (final String k in kFontWidgets) (name: k, hint: ''),
+    ]);
+    if (name == null || name.isEmpty) return;
+    theme.fonts.add(ThemeFont(name, size: 12, font: 'Sans'));
+    app.touchTheme();
+    _bump();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Images tab
+  // ---------------------------------------------------------------------------
+
+  String _baseOf(String fileName) {
+    final int dot = fileName.lastIndexOf('.');
+    return dot < 0 ? fileName : fileName.substring(0, dot);
+  }
+
+  ThemeImage? _imageForBase(Ao2Theme theme, String base) {
+    for (final ThemeImage im in theme.images.values) {
+      if (_baseOf(im.fileName) == base) return im;
+    }
+    return null;
+  }
+
+  Widget _imagesTab(AppState app, Ao2Theme theme) {
+    // Custom (imported) images not in the catalogue.
+    final Set<String> known = <String>{
+      for (final ThemeImageSlot s in kThemeImageSlots) _baseOf(s.fileName)
+    };
+    final List<ThemeImage> extra = <ThemeImage>[
+      for (final ThemeImage im in theme.images.values)
+        if (!known.contains(_baseOf(im.fileName))) im,
+    ];
+    return ListView(
+      padding: const EdgeInsets.all(10),
+      children: <Widget>[
+        Row(children: <Widget>[
+          Expanded(
+            child: Text(
+              'Replace any asset with your own PNG / GIF / WebP. The client picks '
+              'webp → apng → gif → png by name.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ),
+          FilledButton.tonalIcon(
+            onPressed: () => _addCustomImage(app),
+            icon: const Icon(Icons.add_photo_alternate_outlined, size: 18),
+            label: const Text('Add custom'),
+          ),
+        ]),
+        const SizedBox(height: 8),
+        for (final String cat in kThemeImageCategories) ...<Widget>[
+          Padding(
+            padding: const EdgeInsets.only(top: 8, bottom: 4),
+            child: Text(cat, style: Theme.of(context).textTheme.titleSmall),
+          ),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: <Widget>[
+              for (final ThemeImageSlot s in kThemeImageSlots)
+                if (s.category == cat) _imageSlot(app, theme, s.fileName, s.hint),
+            ],
+          ),
+        ],
+        if (extra.isNotEmpty) ...<Widget>[
+          const Padding(
+            padding: EdgeInsets.only(top: 8, bottom: 4),
+            child: Text('Imported / custom', style: TextStyle(fontWeight: FontWeight.w600)),
+          ),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: <Widget>[
+              for (final ThemeImage im in extra) _imageSlot(app, theme, im.fileName, ''),
+            ],
+          ),
+        ],
+        const SizedBox(height: 24),
+      ],
+    );
+  }
+
+  Widget _imageSlot(AppState app, Ao2Theme theme, String fileName, String hint) {
+    final ThemeImage? im = _imageForBase(theme, _baseOf(fileName));
+    return SizedBox(
+      width: 120,
+      child: Column(
+        children: <Widget>[
+          GestureDetector(
+            onTap: () => _replaceImage(app, theme, fileName),
+            child: Container(
+              width: 120,
+              height: 90,
+              decoration: BoxDecoration(
+                color: Colors.black26,
+                border: Border.all(
+                    color: im?.bytes != null ? Colors.tealAccent : Colors.white24),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: im?.bytes != null
+                  ? Image.memory(im!.bytes!, fit: BoxFit.contain, gaplessPlayback: true)
+                  : const Center(
+                      child: Icon(Icons.add_photo_alternate_outlined,
+                          color: Colors.white38)),
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(im?.fileName ?? fileName,
+              style: const TextStyle(fontSize: 10),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis),
+          if (hint.isNotEmpty)
+            Text(hint,
+                style: const TextStyle(fontSize: 9, color: Colors.white54),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis),
+          if (im?.bytes != null)
+            TextButton(
+              style: TextButton.styleFrom(
+                  visualDensity: VisualDensity.compact, padding: EdgeInsets.zero),
+              onPressed: () {
+                theme.images.removeWhere(
+                    (String k, ThemeImage v) => _baseOf(k) == _baseOf(fileName));
+                app.touchTheme();
+              },
+              child: const Text('Clear', style: TextStyle(fontSize: 11)),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _replaceImage(AppState app, Ao2Theme theme, String defaultName) async {
+    final FilePickerResult? res = await FilePicker.platform.pickFiles(
+      withData: true,
+      type: FileType.custom,
+      allowedExtensions: const <String>['png', 'webp', 'gif', 'apng', 'jpg', 'jpeg', 'bmp'],
+    );
+    if (res == null || res.files.isEmpty || res.files.first.bytes == null) return;
+    final PlatformFile f = res.files.first;
+    final String ext = (f.extension ?? 'png').toLowerCase();
+    final String base = _baseOf(defaultName);
+    final String newName = '$base.$ext';
+    // Drop any other-extension variant of the same asset so the client can't
+    // pick a stale one.
+    theme.images.removeWhere((String k, ThemeImage v) => _baseOf(k) == base);
+    app.setThemeImage(newName, f.bytes, ext: ext);
+  }
+
+  Future<void> _addCustomImage(AppState app) async {
+    final String? name = await _promptName('Asset file name (e.g. background.png)');
+    if (name == null || name.isEmpty || !mounted) return;
+    await _replaceImage(app, app.theme!, name.contains('.') ? name : '$name.png');
+  }
+
+  // ---------------------------------------------------------------------------
+  // Style tab (CSS + sounds)
+  // ---------------------------------------------------------------------------
+
+  Widget _styleTab(AppState app, Ao2Theme theme) {
+    return ListView(
+      padding: const EdgeInsets.all(12),
+      children: <Widget>[
+        Text('Courtroom stylesheet (Qt CSS)',
+            style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 4),
+        TextFormField(
+          key: ValueKey<String>('css$_rev'),
+          initialValue: theme.courtroomCss,
+          maxLines: 12,
+          style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
+          decoration: const InputDecoration(
+              border: OutlineInputBorder(), hintText: 'QWidget { color: white; } …'),
+          onChanged: (String s) => theme.courtroomCss = s,
+        ),
+        const SizedBox(height: 16),
+        Text('Lobby stylesheet', style: Theme.of(context).textTheme.titleMedium),
+        const SizedBox(height: 4),
+        TextFormField(
+          key: ValueKey<String>('lcss$_rev'),
+          initialValue: theme.lobbyCss,
+          maxLines: 6,
+          style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
+          decoration: const InputDecoration(border: OutlineInputBorder()),
+          onChanged: (String s) => theme.lobbyCss = s,
+        ),
+        const Divider(height: 28),
+        Row(children: <Widget>[
+          Expanded(
+            child: Text('Sounds (${theme.sounds.length})',
+                style: Theme.of(context).textTheme.titleMedium),
+          ),
+          FilledButton.tonalIcon(
+            onPressed: () async {
+              final String? name = await _promptName('Sound key (e.g. objection)');
+              if (name == null || name.isEmpty) return;
+              theme.sounds.add(ThemeSound(name, ''));
+              app.touchTheme();
+              _bump();
+            },
+            icon: const Icon(Icons.add, size: 18),
+            label: const Text('Add'),
+          ),
+        ]),
+        for (final ThemeSound snd in theme.sounds)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 3),
+            child: Row(children: <Widget>[
+              SizedBox(width: 130, child: Text(snd.name, style: const TextStyle(fontSize: 12))),
+              Expanded(
+                child: TextFormField(
+                  key: ValueKey<String>('snd-${snd.name}-$_rev'),
+                  initialValue: snd.path,
+                  decoration: const InputDecoration(isDense: true, hintText: 'sfx/objection.opus'),
+                  onFieldSubmitted: (String s) {
+                    snd.path = s.trim();
+                    app.touchTheme();
+                  },
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.close, size: 16),
+                onPressed: () {
+                  theme.sounds.remove(snd);
+                  app.touchTheme();
+                },
+              ),
+            ]),
+          ),
+        const Divider(height: 28),
+        Row(children: <Widget>[
+          Expanded(
+            child: Text('Design options (${theme.courtroom.scalars.length})',
+                style: Theme.of(context).textTheme.titleMedium),
+          ),
+          FilledButton.tonalIcon(
+            onPressed: () => _addScalar(app, theme),
+            icon: const Icon(Icons.add, size: 18),
+            label: const Text('Add'),
+          ),
+        ]),
+        const Text(
+          'Alignment, spacing and flags — every non-position design key '
+          '(e.g. showname_align, emote_button_spacing, music_list_animated).',
+          style: TextStyle(fontSize: 12, color: Colors.white60),
+        ),
+        for (final MapEntry<String, String> sc in theme.courtroom.scalars)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 3),
+            child: Row(children: <Widget>[
+              SizedBox(
+                  width: 170,
+                  child: Text(sc.key, style: const TextStyle(fontSize: 12))),
+              Expanded(
+                child: TextFormField(
+                  key: ValueKey<String>('sc-${sc.key}-${sc.value}-$_rev'),
+                  initialValue: sc.value,
+                  decoration: const InputDecoration(isDense: true),
+                  onFieldSubmitted: (String s) {
+                    theme.courtroom.setScalar(sc.key, s.trim());
+                    app.touchTheme();
+                  },
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.close, size: 16),
+                onPressed: () {
+                  theme.courtroom.scalars
+                      .removeWhere((MapEntry<String, String> x) => x.key == sc.key);
+                  app.touchTheme();
+                },
+              ),
+            ]),
+          ),
+        const SizedBox(height: 24),
+      ],
+    );
+  }
+
+  Future<void> _addScalar(AppState app, Ao2Theme theme) async {
+    final String? name =
+        await _pickKnown('Add a design option', <({String name, String hint})>[
+      for (final ({String key, String hint}) s in kThemeScalars)
+        (name: s.key, hint: s.hint),
+    ]);
+    if (name == null || name.isEmpty) return;
+    theme.courtroom.setScalar(name, '');
+    app.touchTheme();
+    _bump();
+  }
+
+  // ---------------------------------------------------------------------------
+  // Preview tab (schematic layout)
+  // ---------------------------------------------------------------------------
+
+  Widget _previewTab(AppState app, Ao2Theme theme) {
+    return Column(
+      children: <Widget>[
+        Padding(
+          padding: const EdgeInsets.all(8),
+          child: Row(
+            children: <Widget>[
+              const Expanded(
+                child: Text(
+                  'Drag a widget to move it; drag its bottom-right corner to '
+                  'resize. Tap empty space to deselect. Editing here updates the '
+                  'Layout tab too.',
+                  style: TextStyle(fontSize: 12, color: Colors.white60),
+                ),
+              ),
+              SegmentedButton<bool>(
+                segments: const <ButtonSegment<bool>>[
+                  ButtonSegment<bool>(value: false, label: Text('Courtroom')),
+                  ButtonSegment<bool>(value: true, label: Text('Lobby')),
+                ],
+                selected: <bool>{_editLobby},
+                onSelectionChanged: (Set<bool> s) =>
+                    setState(() => _editLobby = s.first),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: _LayoutCanvas(
+              key: ValueKey<String>('canvas-$_rev-$_editLobby'),
+              design: _editLobby ? theme.lobby : theme.courtroom,
+              themeW: theme.width,
+              themeH: theme.height,
+              onCommit: app.touchTheme,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ---------------------------------------------------------------------------
+  // shared helpers
+  // ---------------------------------------------------------------------------
+
+  Future<int?> _pickColour(int argb) async {
+    Color picked = Color(argb);
+    final bool? ok = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext ctx) => AlertDialog(
+        title: const Text('Pick a colour'),
+        content: SingleChildScrollView(
+          child: ColorPicker(
+            pickerColor: picked,
+            enableAlpha: false,
+            paletteType: PaletteType.hueWheel,
+            hexInputBar: true,
+            labelTypes: const <ColorLabelType>[ColorLabelType.hex, ColorLabelType.rgb],
+            onColorChanged: (Color c) => picked = c,
+          ),
+        ),
+        actions: <Widget>[
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('OK')),
+        ],
+      ),
+    );
+    if (ok != true) return null;
+    return 0xFF000000 | (picked.red << 16) | (picked.green << 8) | picked.blue;
+  }
+
+  /// A searchable picker over a list of known names (with hints) that also lets
+  /// you type a custom one — so you can add *any* widget/colour/font/option.
+  Future<String?> _pickKnown(
+      String title, List<({String name, String hint})> options) {
+    final TextEditingController custom = TextEditingController();
+    String search = '';
+    return showDialog<String>(
+      context: context,
+      builder: (BuildContext ctx) => StatefulBuilder(
+        builder: (BuildContext ctx, StateSetter setD) {
+          final List<({String name, String hint})> filtered =
+              <({String name, String hint})>[
+            for (final ({String name, String hint}) o in options)
+              if (search.isEmpty ||
+                  o.name.toLowerCase().contains(search) ||
+                  o.hint.toLowerCase().contains(search))
+                o,
+          ];
+          return AlertDialog(
+            title: Text(title),
+            content: SizedBox(
+              width: 440,
+              height: 460,
+              child: Column(
+                children: <Widget>[
+                  TextField(
+                    decoration: const InputDecoration(
+                        prefixIcon: Icon(Icons.search, size: 18),
+                        hintText: 'Search…',
+                        isDense: true),
+                    onChanged: (String s) =>
+                        setD(() => search = s.trim().toLowerCase()),
+                  ),
+                  const SizedBox(height: 6),
+                  TextField(
+                    controller: custom,
+                    decoration: const InputDecoration(
+                        labelText: 'Or type a custom name', isDense: true),
+                    onSubmitted: (String s) => Navigator.pop(ctx, s.trim()),
+                  ),
+                  const SizedBox(height: 6),
+                  Expanded(
+                    child: ListView(
+                      children: <Widget>[
+                        for (final ({String name, String hint}) o in filtered)
+                          ListTile(
+                            dense: true,
+                            title: Text(o.name),
+                            subtitle: o.hint.isEmpty
+                                ? null
+                                : Text(o.hint, style: const TextStyle(fontSize: 11)),
+                            onTap: () => Navigator.pop(ctx, o.name),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: <Widget>[
+              TextButton(
+                  onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+              FilledButton(
+                  onPressed: () => Navigator.pop(ctx, custom.text.trim()),
+                  child: const Text('Add custom')),
+            ],
+          );
+        },
+      ),
+    ).whenComplete(custom.dispose);
+  }
+
+  Future<String?> _promptName(String title) async {
+    final TextEditingController c = TextEditingController();
+    final String? result = await showDialog<String>(
+      context: context,
+      builder: (BuildContext ctx) => AlertDialog(
+        title: Text(title),
+        content: TextField(
+          controller: c,
+          autofocus: true,
+          onSubmitted: (String s) => Navigator.pop(ctx, s.trim()),
+        ),
+        actions: <Widget>[
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, c.text.trim()),
+              child: const Text('OK')),
+        ],
+      ),
+    );
+    c.dispose();
+    return result;
+  }
+}
+
+/// Interactive layout canvas: every widget is a draggable box (drag to move,
+/// drag the bottom-right corner to resize). Mutates the [ThemeElement]s live and
+/// calls [onCommit] on release. Mouse deltas are divided by the fit scale so a
+/// drag maps 1:1 to theme pixels regardless of zoom.
+class _LayoutCanvas extends StatefulWidget {
+  const _LayoutCanvas({
+    super.key,
+    required this.design,
+    required this.themeW,
+    required this.themeH,
+    required this.onCommit,
+  });
+
+  final ThemeDesign design;
+  final int themeW;
+  final int themeH;
+  final VoidCallback onCommit;
+
+  @override
+  State<_LayoutCanvas> createState() => _LayoutCanvasState();
+}
+
+class _LayoutCanvasState extends State<_LayoutCanvas> {
+  ThemeElement? _sel;
+  bool _resizing = false;
+  double _accX = 0, _accY = 0;
+  int _startX = 0, _startY = 0, _startW = 0, _startH = 0;
+
+  @override
+  Widget build(BuildContext context) {
+    final int tw = widget.themeW, th = widget.themeH;
+    if (tw <= 0 || th <= 0) {
+      return const Center(child: Text('Set the courtroom size first.'));
+    }
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints cons) {
+        final double scale = (cons.maxWidth / tw).clamp(0.0, cons.maxHeight / th);
+        if (scale <= 0) return const SizedBox.shrink();
+        final double dw = tw * scale, dh = th * scale;
+        return Center(
+          child: GestureDetector(
+            onTap: () => setState(() => _sel = null),
+            child: Container(
+              width: dw,
+              height: dh,
+              decoration: BoxDecoration(
+                color: const Color(0xFF15101F),
+                border: Border.all(color: Colors.white24),
+              ),
+              child: Stack(
+                children: <Widget>[
+                  for (final ThemeElement e in widget.design.elements)
+                    if (e.name != 'courtroom' && e.w > 0 && e.h > 0) _box(e, scale),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _box(ThemeElement e, double scale) {
+    final bool selected = identical(e, _sel);
+    final Color col = _hueFor(e.name);
+    final double bw = (e.w * scale).clamp(6.0, double.infinity);
+    final double bh = (e.h * scale).clamp(6.0, double.infinity);
+    const double handle = 16;
+    final bool resizable = bw >= 28 && bh >= 28;
+    return Positioned(
+      left: e.x * scale,
+      top: e.y * scale,
+      width: bw,
+      height: bh,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => setState(() => _sel = e),
+        onPanStart: (DragStartDetails d) {
+          _accX = 0;
+          _accY = 0;
+          _resizing = resizable &&
+              d.localPosition.dx > bw - handle &&
+              d.localPosition.dy > bh - handle;
+          _startX = e.x;
+          _startY = e.y;
+          _startW = e.w;
+          _startH = e.h;
+          setState(() => _sel = e);
+        },
+        onPanUpdate: (DragUpdateDetails d) {
+          _accX += d.delta.dx;
+          _accY += d.delta.dy;
+          setState(() {
+            if (_resizing) {
+              e.w = (_startW + (_accX / scale).round()).clamp(1, 1 << 20);
+              e.h = (_startH + (_accY / scale).round()).clamp(1, 1 << 20);
+            } else {
+              e.x = _startX + (_accX / scale).round();
+              e.y = _startY + (_accY / scale).round();
+            }
+          });
+        },
+        onPanEnd: (_) => widget.onCommit(),
+        child: Stack(
+          children: <Widget>[
+            Positioned.fill(
+              child: Container(
+                decoration: BoxDecoration(
+                  border: Border.all(
+                      color: selected ? Colors.white : col.withOpacity(0.9),
+                      width: selected ? 2 : 1),
+                  color: col.withOpacity(selected ? 0.22 : 0.12),
+                ),
+                alignment: Alignment.topLeft,
+                child: Padding(
+                  padding: const EdgeInsets.all(1),
+                  child: Text(e.name,
+                      style: const TextStyle(fontSize: 8, color: Colors.white),
+                      maxLines: 1,
+                      overflow: TextOverflow.clip),
+                ),
+              ),
+            ),
+            if (selected && resizable)
+              Positioned(
+                right: 0,
+                bottom: 0,
+                child: Container(
+                  width: handle,
+                  height: handle,
+                  color: Colors.white,
+                  child: const Icon(Icons.open_in_full, size: 10, color: Colors.black),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Color _hueFor(String name) {
+    final int h = name.hashCode % 360;
+    return HSVColor.fromAHSV(1, (h < 0 ? h + 360 : h).toDouble(), 0.55, 0.95).toColor();
+  }
+}
