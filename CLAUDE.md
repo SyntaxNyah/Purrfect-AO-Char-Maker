@@ -288,7 +288,12 @@ The central model.
 - Native (`_io`): `NativeWebpEncoder` — libwebp via FFI (`WebPEncodeRGBA`,
   `WebPEncodeLosslessRGBA`, anim via `libwebpmux` `WebPAnimEncoder*`). ABI
   constants `_kEncoderAbi`/`_kMuxAbi` may need adjusting per libwebp version;
-  every call is checked and fails to `WebpResult.fail` (never crashes).
+  every call is checked and fails to `WebpResult.fail` (never crashes), and the
+  reason is surfaced to the UI status line (don't swallow it). **Only look up
+  symbols a build is guaranteed to export**: the assembled-animation buffer is
+  freed with `WebPFree` (always present), not `WebPDataClear` — vcpkg's
+  `libwebpmux.dll` doesn't export `WebPDataClear`, and looking it up made the
+  whole anim encode fall back to APNG.
 - Web (`_web`): `WebWebpEncoder` — browser canvas (`toDataUrl('image/webp')`),
   still only; animation returns fail (callers fall back to APNG).
 

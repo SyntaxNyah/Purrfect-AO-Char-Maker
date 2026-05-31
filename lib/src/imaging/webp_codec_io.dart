@@ -228,7 +228,6 @@ class NativeWebpEncoder implements WebpEncoder {
     final _AnimAddD animAdd;
     final _AnimAssembleD assemble;
     final _VoidPtrD animDelete;
-    final _VoidPtrD dataClear;
     final _I32VoidI32D picInit;
     final _PicImportD picImport;
     final _VoidPtrD picFree;
@@ -239,7 +238,6 @@ class NativeWebpEncoder implements WebpEncoder {
       animAdd = mux.lookupFunction<_AnimAddC, _AnimAddD>('WebPAnimEncoderAdd');
       assemble = mux.lookupFunction<_AnimAssembleC, _AnimAssembleD>('WebPAnimEncoderAssemble');
       animDelete = mux.lookupFunction<_VoidPtrC, _VoidPtrD>('WebPAnimEncoderDelete');
-      dataClear = mux.lookupFunction<_VoidPtrC, _VoidPtrD>('WebPDataClear');
       picInit = base.lookupFunction<_I32VoidI32C, _I32VoidI32D>('WebPPictureInitInternal');
       picImport = base.lookupFunction<_PicImportC, _PicImportD>('WebPPictureImportRGBA');
       picFree = base.lookupFunction<_VoidPtrC, _VoidPtrD>('WebPPictureFree');
@@ -311,7 +309,12 @@ class NativeWebpEncoder implements WebpEncoder {
         return WebpResult.fail('Animated WebP: empty output.');
       }
       final Uint8List bytes = Uint8List.fromList(outPtr.asTypedList(size));
-      dataClear(data.cast<ffi.Void>());
+      // Free the buffer WebPAnimEncoderAssemble allocated. This is exactly what
+      // WebPDataClear does internally (WebPFree on data.bytes) — done directly so
+      // we don't depend on WebPDataClear being exported. vcpkg's libwebpmux.dll
+      // doesn't export it ("Failed to lookup symbol 'WebPDataClear'"), which used
+      // to make the whole symbol-lookup block throw and fall back to APNG.
+      _free?.call(outPtr.cast<ffi.Void>());
       return WebpResult.ok(bytes);
     } catch (e) {
       return WebpResult.fail('Animated WebP encode failed: $e');
