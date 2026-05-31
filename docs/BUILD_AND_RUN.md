@@ -61,9 +61,15 @@ Pages, itch.io, …). The web build:
 > to force it.
 
 ## Native WebP (desktop/mobile)
-WebP **encoding** on native uses `libwebp` via FFI (decoding always works). If
-the library isn't found, WebP export reports it and other formats still work.
-See [PLUGINS.md](PLUGINS.md#native-libwebp) to install/bundle it.
+WebP **encoding** on native uses `libwebp` via FFI (decoding always works);
+**animated** WebP additionally needs `libwebpmux`. If a library isn't found, the
+save **reports the exact reason** and falls back to APNG/GIF, and other formats
+still work. The CI release artifacts bundle the DLLs next to the `.exe`, and
+`scripts/build_all.ps1` does the same for local Windows builds (best-effort, via
+vcpkg) — so a locally-built app gets working animated WebP. A plain
+`flutter run` (debug) has no DLLs bundled and will export APNG until you place
+them next to the debug executable. See
+[PLUGINS.md](PLUGINS.md#native-libwebp) to install/bundle it.
 
 ## Mobile file access
 iOS and Android sandbox the filesystem. Pinsel imports images (or a whole

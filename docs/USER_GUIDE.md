@@ -234,7 +234,13 @@ works natively. The **Animate** tab has two modes (toggle at the top):
    - **Save (b) talk (WebP)** — saves it as the **talking** animation.
    - the **moon icon** saves it as the **(a) idle** animation.
    - It's added to your project *and* downloaded. WebP is the default; it
-     automatically falls back to APNG if your platform can't make WebP.
+     automatically falls back to APNG if your platform can't make WebP — and the
+     status line says **why** it fell back, so you can fix it.
+5. **Animate ALL sprites (WebP)** — one button bakes the current effect stack
+   onto **every** sprite at once and saves each as an animated WebP `(b)` talk
+   sprite (replacing any existing talk sprite). Perfect for giving a whole
+   character the same idle sway/breathe in a single click. It confirms first
+   (it's a bulk write) and reports how many came out WebP vs APNG.
 
 <a name="7a-frame-by-frame"></a>
 ### Frames mode (frame-by-frame)
@@ -500,8 +506,10 @@ sounds, preanimations, and frame effects.
   doesn't match a file. Fix the name in the Emotes tab, or add the file.
 - **Recolour preview looks slightly soft.** The live preview uses a smaller copy
   for speed; **Apply** bakes at full resolution.
-- **WebP export unavailable on desktop.** Install libwebp (and libwebpmux for
-  animation) — see [PLUGINS.md](PLUGINS.md#native-libwebp) — or just use the
-  website build, where WebP works out of the box. It falls back to APNG
-  automatically either way.
+- **Animations export as APNG instead of WebP.** WebP needs `libwebp` +
+  `libwebpmux` next to the `.exe`. A plain `flutter run` (debug) has neither, so
+  it falls back to APNG — the save **status line names the reason**. Use the
+  website build (WebP always works), a CI release artifact, or
+  `scripts/build_all.ps1` (bundles the DLLs via vcpkg). See
+  [PLUGINS.md](PLUGINS.md#native-libwebp).
 - More answers: [FAQ.md](FAQ.md).

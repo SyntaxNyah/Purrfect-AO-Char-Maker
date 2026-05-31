@@ -295,7 +295,8 @@ The central model.
 ### animation/anim_clip.dart
 - `class AnimFrame(image,{delayCentis})` — `.delayMs`.
 - `class AnimClip(frames)` — `.toImage()`, `.encode({ext})`,
-  **`.encodePreferWebp({lossless,quality})`** → `({bytes,ext})` (webp else apng).
+  **`.encodePreferWebp({lossless,quality})`** → `({bytes,ext,webpError})` (webp,
+  else apng with `webpError` = the reason WebP wasn't produced).
 
 ### animation/easing.dart
 - `class Easing` — `Easing.apply(name,t)`, `Easing.names`, `Easing.register(name,fn)`.
@@ -363,8 +364,9 @@ The central model.
 - `AppState extends ChangeNotifier` (`ui/app_state.dart`) — the hub the screens
   use: import (files/folder), scan/build, edit, undo/redo, previews, live
   pipeline, apply/bulk, **bulkRename**, **crop/trim/bg via previewEdit/applyEdit**,
-  animation render/save (WebP default), mixer save, export zip/ini. Read it
-  before adding a screen.
+  animation render/save (WebP default) + **bulkAnimateAll** (one effect stack
+  baked onto every sprite, each saved as animated WebP), mixer save, export
+  zip/ini. Read it before adding a screen.
   - **Recolour/edit write back in place** via `_writeSpriteInPlace(rel,image)`:
     re-encodes in the file's own format (WebP via the encoder, APNG/PNG/GIF
     otherwise) and only changes the path/extension on a fallback. `applyPipeline`
@@ -404,9 +406,9 @@ The central model.
     (`hexInputBar`, HEX/RGB/HSV labels); picks become `colorize`/`tint`/
     `solidColor`/`gradientMap` ops on the blend stack.
   - `animation_studio`: two modes via a `SegmentedButton` — **Effects**
-    (procedural recipes) and **Frames** (frame-by-frame: pick/reorder sprite
-    frames, fps/reverse/ping-pong/align, save). Both share the debounced render +
-    `ValueNotifier` playback loop.
+    (procedural recipes; includes **Animate ALL sprites** → `bulkAnimateAll`) and
+    **Frames** (frame-by-frame: pick/reorder sprite frames, fps/reverse/ping-pong/
+    align, save). Both share the debounced render + `ValueNotifier` playback loop.
   - `ini_builder`: dedicated **char.ini `[Options]` editor** — name, showname,
     needs_showname (tri-state), side, blips, chat, category, scaling, stretch,
     effects, realization; preserves imported `extra` keys. Same no-lag pattern as

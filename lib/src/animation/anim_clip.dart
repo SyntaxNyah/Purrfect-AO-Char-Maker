@@ -51,8 +51,11 @@ class AnimClip {
 
   /// Encode as **animated WebP** when possible, falling back to APNG when the
   /// platform can't produce WebP (e.g. web build, or native without libwebpmux).
-  /// Returns the bytes and the extension actually used.
-  Future<({Uint8List bytes, String ext})> encodePreferWebp({
+  /// Returns the bytes, the extension actually used, and — when it had to fall
+  /// back — [webpError]: the reason WebP wasn't produced. Surface it instead of
+  /// silently shipping APNG so "why is it APNG again?" is answerable (missing
+  /// `libwebpmux`, an FFI error, a web build, …) rather than a black box.
+  Future<({Uint8List bytes, String ext, String? webpError})> encodePreferWebp({
     bool lossless = false,
     int quality = 90,
   }) async {
@@ -63,8 +66,12 @@ class AnimClip {
       quality: quality,
     );
     if (r.ok && r.bytes != null) {
-      return (bytes: r.bytes!, ext: 'webp');
+      return (bytes: r.bytes!, ext: 'webp', webpError: null);
     }
-    return (bytes: encode(ext: 'apng'), ext: 'apng');
+    return (
+      bytes: encode(ext: 'apng'),
+      ext: 'apng',
+      webpError: r.reason ?? 'native WebP encoder unavailable',
+    );
   }
 }

@@ -43,7 +43,7 @@ lib/
       webp_codec_web.dart         web: browser canvas encoder
 
     animation/                  ── the animation engine ──
-      anim_clip.dart            frames → encodable APNG/GIF
+      anim_clip.dart            frames → encodable animated WebP (APNG/GIF fallback)
       easing.dart               easing curves (+ registry)
       anim_engine.dart          stackable recipes + region layers + render
       timeline.dart             manual keyframe interpolation

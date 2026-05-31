@@ -79,11 +79,23 @@ final clip = AnimClip(<AnimFrame>[
   AnimFrame(frame1, delayCentis: 10),
   AnimFrame(frame2, delayCentis: 10),
 ]);
-final ({Uint8List bytes, String ext}) out = await clip.encodePreferWebp();
+// `out.ext` is 'webp' when native libwebpmux is present, else 'apng'; on a
+// fallback `out.webpError` says why (so a stray APNG isn't a silent mystery).
+final ({Uint8List bytes, String ext, String? webpError}) out =
+    await clip.encodePreferWebp();
 ```
 `AppState.saveFrameSequence(rels, {fps, reverse, pingPong, align, prefix, name})`
 does this end-to-end (normalise → order → encode WebP/APNG → drop into the
 project), with `renderFrameSequence(...)` for the live preview.
+
+## Animate every sprite at once
+The Animation Studio's **Effects** mode has an **Animate ALL sprites (WebP)**
+button: it renders the current effect stack onto *every* sprite at full
+resolution and saves each as an animated WebP `(b)` talk sprite (APNG fallback),
+replacing any existing same-state sprite. In code:
+`AppState.bulkAnimateAll(recipes, {frames, fps, prefix, lossless, quality})`
+returns how many sprites it animated, and the status line reports how many came
+out as WebP vs APNG (with the reason for any fallback).
 
 ## Lip-sync
 ```dart

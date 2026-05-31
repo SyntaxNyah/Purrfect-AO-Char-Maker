@@ -821,11 +821,13 @@ class AppState extends ChangeNotifier {
 
     final Uint8List bytes;
     final String ext;
+    String? webpError;
     if (preferWebp) {
-      final ({Uint8List bytes, String ext}) r =
+      final ({Uint8List bytes, String ext, String? webpError}) r =
           await clip.encodePreferWebp(lossless: lossless, quality: quality);
       bytes = r.bytes;
       ext = r.ext;
+      webpError = r.webpError;
     } else {
       bytes = clip.encode(ext: 'apng');
       ext = 'apng';
@@ -836,11 +838,93 @@ class AppState extends ChangeNotifier {
     final String outRel = '$prefix$spriteName.$ext';
     await workspace.writeBytes(outRel, bytes);
     _invalidateImageCaches();
-    final String note = ext == 'webp'
-        ? 'WebP'
-        : 'APNG (WebP encoder not found here — release builds ship with it)';
-    _setBusy(false, 'Saved $outRel as $note.');
+    _setBusy(false, 'Saved $outRel as ${_animNote(ext, webpError)}.');
     return saveBytes('$prefix$spriteName.$ext', bytes);
+  }
+
+  /// Human-readable note for an animation save: plain `WebP`, or an APNG
+  /// fallback that says **why** WebP wasn't used — so a stray APNG is something
+  /// you can fix (bundle/locate `libwebpmux`) instead of a silent mystery.
+  String _animNote(String ext, String? webpError) => ext == 'webp'
+      ? 'animated WebP'
+      : 'APNG — animated WebP unavailable (${webpError ?? 'no native libwebpmux'})';
+
+  /// **Bulk-animate every sprite** with one effect stack: render [recipes] onto
+  /// each sprite group's representative frame at full resolution and save each as
+  /// an animated WebP (APNG fallback) under [prefix] (talk `(b)` by default).
+  /// This is "animate all sprites at once" — e.g. give every expression the same
+  /// idle sway/breathe in a single action.
+  ///
+  /// Any existing sprite of the same state (a/b/c) for a base is replaced: its
+  /// old file is deleted when the new clip lands on a different extension, so you
+  /// never end up with a stale `(b)foo.png` beside a fresh `(b)foo.webp`. Returns
+  /// the number of sprites animated.
+  Future<int> bulkAnimateAll(
+    List<AnimRecipe> recipes, {
+    int frames = 16,
+    int fps = 12,
+    String prefix = SpritePrefix.talk,
+    bool lossless = true,
+    int quality = 95,
+  }) async {
+    if (recipes.isEmpty || scan == null) return 0;
+    final List<SpriteGroup> groups = scan!.groups.toList();
+    if (groups.isEmpty) return 0;
+    _setBusy(true, 'Animating ${groups.length} sprites…');
+
+    int ok = 0;
+    int webp = 0;
+    String? lastError;
+    int done = 0;
+    for (final SpriteGroup g in groups) {
+      final String? rel = g.representative?.relPath;
+      // AnimEngine.render reads `base` (composites onto fresh canvases) so the
+      // cached decode is safe to reuse without cloning.
+      final img.Image? base = rel == null ? null : await decodeFirstFrame(rel);
+      if (base != null) {
+        final AnimClip clip =
+            AnimEngine.render(base, recipes, frames: frames, fps: fps);
+        final ({Uint8List bytes, String ext, String? webpError}) r =
+            await clip.encodePreferWebp(lossless: lossless, quality: quality);
+        final String outRel = '$prefix${g.base}.${r.ext}';
+
+        // Replace an existing same-state sprite for this base (different ext)
+        // so we don't leave two talk sprites for one pose.
+        final SpriteFile? existing = switch (prefix) {
+          SpritePrefix.idle => g.idle,
+          SpritePrefix.talk => g.talk,
+          SpritePrefix.post => g.post,
+          _ => null,
+        };
+        if (existing != null &&
+            existing.relPath != outRel &&
+            await workspace.exists(existing.relPath)) {
+          await workspace.delete(existing.relPath);
+        }
+
+        await workspace.writeBytes(outRel, r.bytes);
+        ok++;
+        if (r.ext == 'webp') {
+          webp++;
+        } else {
+          lastError = r.webpError;
+        }
+      }
+      _progress(++done, groups.length, 'Animate all');
+      // Yield so the progress bar repaints between (heavy) full-res renders.
+      await Future<void>.delayed(Duration.zero);
+    }
+
+    _invalidateImageCaches();
+    scan = _scanner.fromPaths(await _projectFiles());
+    final String note = ok == 0
+        ? 'no sprites to animate'
+        : webp == ok
+            ? '$ok sprite(s) as animated WebP'
+            : '$ok sprite(s) — $webp WebP, ${ok - webp} APNG '
+                '(${lastError ?? 'native WebP unavailable'})';
+    _setBusy(false, 'Animated $note.');
+    return ok;
   }
 
   // ---------------------------------------------------------------------------
@@ -968,11 +1052,13 @@ class AppState extends ChangeNotifier {
 
     final Uint8List bytes;
     final String ext;
+    String? webpError;
     if (preferWebp) {
-      final ({Uint8List bytes, String ext}) r =
+      final ({Uint8List bytes, String ext, String? webpError}) r =
           await clip.encodePreferWebp(lossless: lossless, quality: quality);
       bytes = r.bytes;
       ext = r.ext;
+      webpError = r.webpError;
     } else {
       bytes = clip.encode(ext: 'apng');
       ext = 'apng';
@@ -983,8 +1069,8 @@ class AppState extends ChangeNotifier {
     await workspace.writeBytes(outRel, bytes);
     _invalidateImageCaches();
     scan = _scanner.fromPaths(await _projectFiles());
-    final String note = ext == 'webp' ? 'WebP' : 'APNG (WebP encoder unavailable here)';
-    _setBusy(false, 'Saved $outRel — ${ordered.length} frames as $note.');
+    _setBusy(false,
+        'Saved $outRel — ${ordered.length} frames as ${_animNote(ext, webpError)}.');
     return saveBytes('$prefix$safe.$ext', bytes);
   }
 

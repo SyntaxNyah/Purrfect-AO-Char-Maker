@@ -25,8 +25,21 @@ encodes WebP with the browser's own codec, no setup needed.
 WebP (including **animated** WebP) is the default export. Native builds produce
 animated WebP via `libwebpmux`; if it (or libwebp) isn't present, or you're on
 the web build, the tool **automatically falls back to APNG** so you always get a
-working animated sprite. To guarantee WebP on desktop, install libwebp +
-libwebpmux (see [PLUGINS.md](PLUGINS.md#native-libwebp)).
+working animated sprite — and the status line now tells you **why** it fell back
+(e.g. "libwebpmux not found"), so a stray APNG is fixable instead of a mystery.
+To guarantee WebP on desktop, ship the DLLs next to the `.exe`: the CI release
+artifact already does, and `scripts/build_all.ps1` bundles them into local
+Windows builds too (best-effort, via vcpkg). See
+[PLUGINS.md](PLUGINS.md#native-libwebp) to install/bundle libwebp + libwebpmux.
+
+**My animation keeps exporting as APNG, not WebP — why?**
+WebP encoding needs the native `libwebp` **and** `libwebpmux` libraries loaded at
+runtime. The most common cause is running a build that doesn't have them next to
+the executable — e.g. a plain `flutter run` (debug) or a hand-built Release that
+skipped the bundling step. Fixes: use the **web** build (WebP always works
+there), grab a **CI release artifact**, or run `scripts/build_all.ps1` (which
+bundles the DLLs via vcpkg). The save status line names the exact reason for the
+fallback, so check it after saving.
 
 **How do I recolour just the clothes / hair?**
 Use the region editor: magic-wand select the colour, feather it, then apply a

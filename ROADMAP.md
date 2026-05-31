@@ -37,7 +37,11 @@ Legend: ✅ done · 🟡 partial · ⬜ planned
 - ✅ WebP encode: web (canvas) + native (libwebp via FFI), bundled in CI builds
 - ✅ Animated WebP export (native via libwebpmux); **WebP is the default output**,
   auto-falling back to APNG where WebP isn't available (web build, or native
-  without libwebpmux)
+  without libwebpmux) — and the fallback now **reports why** (no more silent APNG)
+- ✅ Bulk "animate all sprites" — one effect stack baked onto every sprite at
+  once, each saved as an animated WebP `(b)` talk sprite (`bulkAnimateAll`)
+- ✅ `scripts/build_all.ps1` bundles the libwebp DLLs into local Windows builds
+  too (best-effort via vcpkg), so a locally-built app gets working animated WebP
 - ⬜ GPU fragment-shader real-time path (CPU preview works now)
 - ⬜ Palette-swap (exact indexed remap) op
 - ✅ Outline / drop-shadow / glow image ops (spatial ops that draw into the halo)

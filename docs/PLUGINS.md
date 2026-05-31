@@ -96,9 +96,16 @@ Decoding always works without these. If a library is missing, the app
 nothing breaks. The web build needs none of this — it uses the browser's codec
 for still WebP and falls back to APNG for animation.
 
+When the app falls back, the save status line names the reason (e.g. "libwebpmux
+not found"), so you can tell a missing library apart from a real encode error.
+
 Install / bundle libwebp:
-- **Windows** — put `libwebp.dll` next to the executable.
-- **Linux** — `apt install libwebp7` / `dnf install libwebp`, or bundle the `.so`.
+- **Windows** — put `libwebp.dll` **and `libwebpmux.dll`** (+ `libsharpyuv.dll`)
+  next to the executable. `scripts/build_all.ps1` does this automatically for
+  local Release builds (best-effort, via vcpkg); CI release artifacts already
+  bundle them.
+- **Linux** — `apt install libwebp7 libwebpmux3` / `dnf install libwebp`, or
+  bundle the `.so` files.
 - **macOS** — `brew install webp` (or bundle the `.dylib`).
 - **Android** — bundle `libwebp.so` per ABI under `android/app/src/main/jniLibs/`.
 - **iOS** — statically link libwebp into the Runner.

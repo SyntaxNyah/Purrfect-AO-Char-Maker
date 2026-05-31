@@ -116,6 +116,34 @@ class _AnimationStudioScreenState extends State<AnimationStudioScreen> {
     _schedule();
   }
 
+  /// Confirm, then render the current effect stack onto **every** sprite and
+  /// save each as an animated WebP (b) talk sprite.
+  Future<void> _animateAll(AppState app) async {
+    final int count = app.spriteBases().length;
+    final String stack = _recipes.map((AnimRecipe r) => r.type).join(' + ');
+    final bool? go = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext ctx) => AlertDialog(
+        title: const Text('Animate all sprites?'),
+        content: Text(
+          'Render this effect stack ($stack) onto all $count sprite(s) and save '
+          'each as an animated WebP (b) talk sprite, replacing any existing talk '
+          'sprite. This bakes at full resolution and may take a moment.',
+        ),
+        actions: <Widget>[
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel')),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Animate all')),
+        ],
+      ),
+    );
+    if (go != true) return;
+    await app.bulkAnimateAll(_recipes, frames: _frames, fps: _fps, prefix: '(b)');
+  }
+
   // ---- frames-mode actions ----
   void _addFrame(String rel) {
     setState(() => _seq.add(rel));
@@ -470,6 +498,25 @@ class _AnimationStudioScreenState extends State<AnimationStudioScreen> {
           icon: const Icon(Icons.clear_all_rounded),
         ),
       ]),
+      const SizedBox(height: 8),
+      SizedBox(
+        width: double.infinity,
+        child: OutlinedButton.icon(
+          onPressed: (_recipes.isEmpty || !app.hasProject)
+              ? null
+              : () => _animateAll(app),
+          icon: const Icon(Icons.auto_awesome_motion),
+          label: const Text('Animate ALL sprites (WebP)'),
+        ),
+      ),
+      const Padding(
+        padding: EdgeInsets.only(top: 2),
+        child: Text(
+          'Renders this effect stack onto every sprite at once and saves each as '
+          'an animated WebP talk (b) sprite.',
+          style: TextStyle(fontSize: 11, color: Colors.white60),
+        ),
+      ),
       if (_recipes.isNotEmpty) ...<Widget>[
         const Divider(height: 24),
         Text('Effect strength', style: Theme.of(context).textTheme.titleMedium),

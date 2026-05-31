@@ -80,13 +80,18 @@ Runs natively on **Windows, Linux, macOS, Android, iOS**, and as a **website**
 - **Frame-by-frame** — already drew the frames? The **Frames** mode stitches
   chosen sprites into one animation (fps, reverse, ping-pong, auto-aligned
   canvas) and exports it — no procedural effect required.
+- **Animate ALL sprites at once** — one button bakes your effect stack onto
+  *every* sprite, saving each as an animated WebP `(b)` talk sprite. Give a whole
+  character the same idle sway/breathe in a single click.
 - **Animate just a part** — pick a region to wave a hand or spin a limb.
 - **Lip-sync** — give it a mouth-closed + mouth-open sprite (or several visemes)
   and it builds the talking `(b)` animation; a rough one-sprite auto mode exists
   too.
 - **~88 stackable effects** and a **custom keyframe timeline** for full control.
 - Exports as **animated WebP** by default (bundled libwebp on desktop/mobile;
-  browser-native on web), auto-falling back to APNG where WebP isn't available.
+  browser-native on web), auto-falling back to APNG where WebP isn't available —
+  and the status line tells you *why* it fell back, so a stray APNG is fixable
+  rather than a mystery.
 
 ### Extend everything
 - **Plugin packs** — plain JSON adding presets, palettes, gradients, animations
