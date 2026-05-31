@@ -38,6 +38,33 @@ class HomeScreen extends StatelessWidget {
     ]);
   }
 
+  /// Add more sprite files to the **current** character (keeps existing emotes
+  /// and edits; only new sprite groups become new emotes).
+  Future<void> _addSpriteFiles(BuildContext context) async {
+    final AppState app = context.read<AppState>();
+    final FilePickerResult? res = await FilePicker.platform.pickFiles(
+      allowMultiple: true,
+      withData: true,
+      type: FileType.custom,
+      allowedExtensions: kImportableImageExtensions,
+    );
+    if (res == null) return;
+    await app.addSprites(<PickedFile>[
+      for (final PlatformFile f in res.files)
+        if (f.bytes != null) PickedFile(f.name, f.bytes!),
+    ]);
+  }
+
+  /// Add a whole folder of sprites to the **current** character.
+  Future<void> _addSpriteFolder(BuildContext context) async {
+    final AppState app = context.read<AppState>();
+    final List<PickedFolderFile>? files = await pickFolderFiles();
+    if (files == null || files.isEmpty) return;
+    await app.addSprites(<PickedFile>[
+      for (final PickedFolderFile f in files) PickedFile(f.name, f.bytes),
+    ]);
+  }
+
   @override
   Widget build(BuildContext context) {
     final AppState app = context.watch<AppState>();
@@ -72,6 +99,16 @@ class HomeScreen extends StatelessWidget {
               label: const Text('Import folder'),
             ),
             if (app.hasProject) ...<Widget>[
+              FilledButton.tonalIcon(
+                onPressed: () => _addSpriteFiles(context),
+                icon: const Icon(Icons.add_photo_alternate_outlined),
+                label: const Text('Add sprites'),
+              ),
+              FilledButton.tonalIcon(
+                onPressed: () => _addSpriteFolder(context),
+                icon: const Icon(Icons.create_new_folder_outlined),
+                label: const Text('Add sprite folder'),
+              ),
               OutlinedButton.icon(
                 onPressed: () => app.exportZip(),
                 icon: const Icon(Icons.archive_outlined),
@@ -85,6 +122,15 @@ class HomeScreen extends StatelessWidget {
             ],
           ],
         ),
+        if (app.hasProject)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Text(
+              'Tip: “Add sprites” grows the current character (keeps your emotes '
+              '& edits); “Import” starts fresh.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ),
         const SizedBox(height: 20),
 
         _AutoBuildCard(app: app),

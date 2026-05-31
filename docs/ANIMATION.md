@@ -97,6 +97,13 @@ replacing any existing same-state sprite. In code:
 returns how many sprites it animated, and the status line reports how many came
 out as WebP vs APNG (with the reason for any fallback).
 
+The heavy render+encode for each sprite runs **off the UI isolate** (via
+Flutter's `compute`, inline on web) so the app stays responsive instead of
+freezing. It stays **lossless** (`lossless: true` — bulk export must not degrade
+quality; responsiveness comes from the background isolate, not from dropping to
+lossy). Bulk uses the built-in effect recipes (plugin-registered recipe types
+aren't available in the worker isolate).
+
 ## Lip-sync
 ```dart
 import 'package:pinsel/src/animation/lipsync.dart';

@@ -55,9 +55,12 @@ class AnimClip {
   /// back — [webpError]: the reason WebP wasn't produced. Surface it instead of
   /// silently shipping APNG so "why is it APNG again?" is answerable (missing
   /// `libwebpmux`, an FFI error, a web build, …) rather than a black box.
+  /// Defaults to **lossless** — animation exports must not degrade sprite
+  /// quality; pass `lossless: false` only where the caller deliberately wants a
+  /// smaller lossy file.
   Future<({Uint8List bytes, String ext, String? webpError})> encodePreferWebp({
-    bool lossless = false,
-    int quality = 90,
+    bool lossless = true,
+    int quality = 95,
   }) async {
     final WebpResult r = await WebpEncoder.instance.encodeAnimation(
       frames.map((AnimFrame f) => f.image).toList(),

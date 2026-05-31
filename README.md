@@ -23,6 +23,10 @@ Runs natively on **Windows, Linux, macOS, Android, iOS**, and as a **website**
 - **Folder → character.** Scans a folder of images, detects `(a)`/`(b)`/`(c)`
   idle/talk/post sprites, static sprites, sub-folder sprites, preanimations, and
   animation formats — then writes a correct `char.ini` for you.
+- **Update an existing character.** Already have a character (or one you
+  imported)? **Add sprites / Add sprite folder** drops new images straight in and
+  turns each new sprite into a new emote — keeping your existing `char.ini`,
+  emotes and edits. Grow a character instead of rebuilding it.
 - **Auto folders + file moving.** Builds the character folder, an `emotions/`
   folder, and lays everything out the way AO expects.
 - **Auto buttons + char_icon.** Generates `buttonN_off.png` for every emote

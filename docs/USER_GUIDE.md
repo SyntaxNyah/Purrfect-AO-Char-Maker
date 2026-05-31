@@ -89,8 +89,15 @@ count. A spinner there means it's working.
   upload there). If the folder already has a `char.ini`, Pinsel loads it as-is
   (nothing is lost); otherwise it auto-builds one.
 
+**Update an existing character** (these appear once a project is loaded)
+- **Add sprites** / **Add sprite folder** — drop *more* images into the
+  character you already have. Each brand-new sprite becomes a new emote, while
+  your existing `char.ini`, emotes and edits are kept untouched. Use this to grow
+  a character (e.g. add a few new expressions). The difference from **Import**:
+  *Import* starts fresh; *Add* grows what you've got.
+
 The moment you import, the status bar tells you what happened (e.g. *"Auto-built
-24 emotes from sprites."*).
+24 emotes from sprites."* or *"Added 3 new emote(s) from new sprites."*).
 
 **Auto-build options** (set these *before* importing for best results, or change
 them and press **Regenerate from sprites**):
@@ -240,7 +247,8 @@ works natively. The **Animate** tab has two modes (toggle at the top):
    onto **every** sprite at once and saves each as an animated WebP `(b)` talk
    sprite (replacing any existing talk sprite). Perfect for giving a whole
    character the same idle sway/breathe in a single click. It confirms first
-   (it's a bulk write) and reports how many came out WebP vs APNG.
+   (it's a bulk write), renders each sprite **in the background** so the app
+   stays responsive, and reports how many came out WebP vs APNG.
 
 <a name="7a-frame-by-frame"></a>
 ### Frames mode (frame-by-frame)

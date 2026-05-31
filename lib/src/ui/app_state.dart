@@ -190,6 +190,51 @@ class AppState extends ChangeNotifier {
     _setBusy(false, 'Imported ${files.length} files.');
   }
 
+  /// **Add sprites to the current character** without losing your work. Drops
+  /// [files] into the project, rescans, and appends an emote for every *new*
+  /// sprite group (one not already referenced by an existing emote) — keeping
+  /// the existing `char.ini`, emotes and edits intact. This is "update an
+  /// existing character / add more sprites": grow a character you already
+  /// imported (e.g. drop in a few new expressions) instead of rebuilding from
+  /// scratch. With no project loaded yet it behaves like [importFiles]. Returns
+  /// the number of new emotes added.
+  Future<int> addSprites(List<PickedFile> files) async {
+    if (files.isEmpty) return 0;
+    if (character == null) {
+      await importFiles(files);
+      return character?.emotes.length ?? 0;
+    }
+    _setBusy(true, 'Adding ${files.length} sprite file(s)…');
+    for (final PickedFile f in files) {
+      workspace.put(f.name, f.bytes);
+    }
+    _invalidateImageCaches();
+    scan = _scanner.fromPaths(await _projectFiles());
+
+    final Set<String> known = character!.spriteReferences();
+    int added = 0;
+    for (final SpriteGroup g in scan!.groups) {
+      if (g.base.isEmpty || known.contains(g.base)) continue;
+      character!.emotes.add(Emote(
+        comment: g.suggestedComment,
+        sprite: g.base,
+        deskMod: DeskModifier.show,
+      ));
+      known.add(g.base);
+      added++;
+    }
+    if (added > 0) {
+      selectedEmote = character!.emotes.length - 1;
+      history.push(character!);
+    }
+    _setBusy(
+        false,
+        added > 0
+            ? 'Added $added new emote(s) from new sprites.'
+            : 'Imported sprites — no new emotes (all already referenced).');
+    return added;
+  }
+
   /// Workspace files that belong to the project (everything except the Mixer's
   /// loaded "parts" folders, which live under [_mixPrefix]).
   Future<List<String>> _projectFiles() async => <String>[
@@ -855,15 +900,19 @@ class AppState extends ChangeNotifier {
   /// This is "animate all sprites at once" — e.g. give every expression the same
   /// idle sway/breathe in a single action.
   ///
-  /// Any existing sprite of the same state (a/b/c) for a base is replaced: its
-  /// old file is deleted when the new clip lands on a different extension, so you
-  /// never end up with a stale `(b)foo.png` beside a fresh `(b)foo.webp`. Returns
-  /// the number of sprites animated.
+  /// The heavy render+encode for each sprite runs **off the UI isolate** (via
+  /// `compute`) so the app stays responsive instead of freezing — while staying
+  /// **lossless** (no quality loss), same as the single-sprite save. Any existing
+  /// sprite of the same state (a/b/c) for a base is replaced, so you never end up
+  /// with a stale `(b)foo.png` beside a fresh `(b)foo.webp`. Returns the number
+  /// of sprites animated.
   Future<int> bulkAnimateAll(
     List<AnimRecipe> recipes, {
     int frames = 16,
     int fps = 12,
     String prefix = SpritePrefix.talk,
+    // Lossless by default — bulk export must not degrade quality. Responsiveness
+    // comes from the background isolate, not from dropping to lossy.
     bool lossless = true,
     int quality = 95,
   }) async {
@@ -872,47 +921,62 @@ class AppState extends ChangeNotifier {
     if (groups.isEmpty) return 0;
     _setBusy(true, 'Animating ${groups.length} sprites…');
 
+    final List<Map<String, dynamic>> recipeJson =
+        recipes.map((AnimRecipe r) => r.toJson()).toList();
+
     int ok = 0;
     int webp = 0;
     String? lastError;
     int done = 0;
     for (final SpriteGroup g in groups) {
       final String? rel = g.representative?.relPath;
-      // AnimEngine.render reads `base` (composites onto fresh canvases) so the
-      // cached decode is safe to reuse without cloning.
-      final img.Image? base = rel == null ? null : await decodeFirstFrame(rel);
-      if (base != null) {
-        final AnimClip clip =
-            AnimEngine.render(base, recipes, frames: frames, fps: fps);
-        final ({Uint8List bytes, String ext, String? webpError}) r =
-            await clip.encodePreferWebp(lossless: lossless, quality: quality);
-        final String outRel = '$prefix${g.base}.${r.ext}';
-
-        // Replace an existing same-state sprite for this base (different ext)
-        // so we don't leave two talk sprites for one pose.
-        final SpriteFile? existing = switch (prefix) {
-          SpritePrefix.idle => g.idle,
-          SpritePrefix.talk => g.talk,
-          SpritePrefix.post => g.post,
-          _ => null,
-        };
-        if (existing != null &&
-            existing.relPath != outRel &&
-            await workspace.exists(existing.relPath)) {
-          await workspace.delete(existing.relPath);
+      if (rel != null && await workspace.exists(rel)) {
+        final _AnimJob job = _AnimJob(
+          bytes: await workspace.readBytes(rel),
+          ext: p.extension(rel).replaceFirst('.', ''),
+          recipes: recipeJson,
+          frames: frames,
+          fps: fps,
+          lossless: lossless,
+          quality: quality,
+        );
+        // Render + encode on a background isolate so the UI thread stays free
+        // (the old version baked every sprite on the main thread and froze).
+        // `compute` runs inline on web; if it ever throws, fall back to inline
+        // so the bake still completes.
+        ({Uint8List bytes, String ext, String? webpError}) r;
+        try {
+          r = await compute(_bulkAnimateWorker, job);
+        } catch (_) {
+          r = await _bulkAnimateWorker(job);
         }
-
-        await workspace.writeBytes(outRel, r.bytes);
-        ok++;
-        if (r.ext == 'webp') {
-          webp++;
-        } else {
-          lastError = r.webpError;
+        if (r.bytes.isNotEmpty && r.ext != 'none') {
+          final String outRel = '$prefix${g.base}.${r.ext}';
+          // Replace an existing same-state sprite for this base (different ext)
+          // so we don't leave two talk sprites for one pose.
+          final SpriteFile? existing = switch (prefix) {
+            SpritePrefix.idle => g.idle,
+            SpritePrefix.talk => g.talk,
+            SpritePrefix.post => g.post,
+            _ => null,
+          };
+          if (existing != null &&
+              existing.relPath != outRel &&
+              await workspace.exists(existing.relPath)) {
+            await workspace.delete(existing.relPath);
+          }
+          await workspace.writeBytes(outRel, r.bytes);
+          ok++;
+          if (r.ext == 'webp') {
+            webp++;
+          } else {
+            lastError = r.webpError;
+          }
         }
       }
+      // `await compute` already yields to the event loop, so the progress bar
+      // repaints between sprites without an explicit delay.
       _progress(++done, groups.length, 'Animate all');
-      // Yield so the progress bar repaints between (heavy) full-res renders.
-      await Future<void>.delayed(Duration.zero);
     }
 
     _invalidateImageCaches();
@@ -1182,4 +1246,43 @@ extension _FirstWhereOrNull<E> on Iterable<E> {
     }
     return null;
   }
+}
+
+/// Sendable job for [_bulkAnimateWorker]: one sprite's animation parameters.
+class _AnimJob {
+  const _AnimJob({
+    required this.bytes,
+    required this.ext,
+    required this.recipes,
+    required this.frames,
+    required this.fps,
+    required this.lossless,
+    required this.quality,
+  });
+  final Uint8List bytes;
+  final String ext;
+  final List<Map<String, dynamic>> recipes;
+  final int frames;
+  final int fps;
+  final bool lossless;
+  final int quality;
+}
+
+/// Off-main-isolate worker for [AppState.bulkAnimateAll] (runs via `compute` on
+/// native; inline on web): decode → render the effect stack → encode one
+/// sprite's animation as WebP (APNG fallback). Top-level so `compute` can call
+/// it. Built-in recipes only — plugin-registered recipe types don't exist in
+/// the worker isolate, but the effect chips that feed bulk-animate are all
+/// built in.
+Future<({Uint8List bytes, String ext, String? webpError})> _bulkAnimateWorker(
+    _AnimJob job) async {
+  final img.Image? base = Codecs.decodeFirstFrame(job.bytes, ext: job.ext);
+  if (base == null) {
+    return (bytes: Uint8List(0), ext: 'none', webpError: 'could not decode sprite');
+  }
+  final List<AnimRecipe> recipes =
+      job.recipes.map(AnimRecipe.fromJson).toList();
+  final AnimClip clip =
+      AnimEngine.render(base, recipes, frames: job.frames, fps: job.fps);
+  return clip.encodePreferWebp(lossless: job.lossless, quality: job.quality);
 }

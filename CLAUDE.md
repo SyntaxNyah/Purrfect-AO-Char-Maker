@@ -367,11 +367,14 @@ The central model.
 
 ### ui/
 - `AppState extends ChangeNotifier` (`ui/app_state.dart`) — the hub the screens
-  use: import (files/folder), scan/build, edit, undo/redo, previews, live
-  pipeline, apply/bulk, **bulkRename**, **crop/trim/bg via previewEdit/applyEdit**,
-  animation render/save (WebP default) + **bulkAnimateAll** (one effect stack
-  baked onto every sprite, each saved as animated WebP), mixer save, export
-  zip/ini. Read it before adding a screen.
+  use: import (files/folder), **addSprites** (grow an existing character without
+  losing emotes/edits — appends an emote per *new* sprite group), scan/build,
+  edit, undo/redo, previews, live pipeline, apply/bulk, **bulkRename**,
+  **crop/trim/bg via previewEdit/applyEdit**, animation render/save (WebP
+  default) + **bulkAnimateAll** (one effect stack baked onto every sprite, each
+  saved as animated WebP; renders+encodes **off the UI isolate via `compute`** so
+  it stays responsive, **lossless** — bulk must not degrade quality), mixer save,
+  export zip/ini. Read it before adding a screen.
   - **Recolour/edit write back in place** via `_writeSpriteInPlace(rel,image)`:
     re-encodes in the file's own format (WebP via the encoder, APNG/PNG/GIF
     otherwise) and only changes the path/extension on a fallback. `applyPipeline`

@@ -39,7 +39,12 @@ Legend: ✅ done · 🟡 partial · ⬜ planned
   auto-falling back to APNG where WebP isn't available (web build, or native
   without libwebpmux) — and the fallback now **reports why** (no more silent APNG)
 - ✅ Bulk "animate all sprites" — one effect stack baked onto every sprite at
-  once, each saved as an animated WebP `(b)` talk sprite (`bulkAnimateAll`)
+  once, each saved as an animated WebP `(b)` talk sprite (`bulkAnimateAll`),
+  rendered+encoded **off the UI isolate** (`compute`) so it stays responsive,
+  while staying **lossless** (no quality loss)
+- ✅ Update an existing character — **Add sprites / Add sprite folder**
+  (`addSprites`) appends an emote per *new* sprite group without touching the
+  existing ini, emotes or edits
 - ✅ `scripts/build_all.ps1` bundles the libwebp DLLs into local Windows builds
   too (best-effort via vcpkg), so a locally-built app gets working animated WebP
 - ⬜ GPU fragment-shader real-time path (CPU preview works now)
